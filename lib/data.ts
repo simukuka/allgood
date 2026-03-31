@@ -155,6 +155,7 @@ export async function getBankAccounts(userId: string): Promise<BankAccount[]> {
     .from("bank_accounts")
     .select("*")
     .eq("user_id", userId)
+    .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -174,6 +175,11 @@ export async function linkBankAccount(input: {
   currency?: string;
   availableBalance?: number;
 }): Promise<{ data: BankAccount | null; error: string | null }> {
+  const { count } = await supabase
+    .from("bank_accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", input.userId);
+
   const { data, error } = await supabase
     .from("bank_accounts")
     .insert({
@@ -185,12 +191,76 @@ export async function linkBankAccount(input: {
       currency: input.currency || "USD",
       available_balance: input.availableBalance ?? 0,
       is_verified: true,
+      is_default: !count || count === 0,
     })
     .select("*")
     .single();
 
   if (error) return { data: null, error: error.message };
   return { data: data as BankAccount, error: null };
+}
+
+export async function setDefaultBankAccount(
+  userId: string,
+  bankAccountId: string,
+): Promise<{ error: string | null }> {
+  const { error: resetErr } = await supabase
+    .from("bank_accounts")
+    .update({ is_default: false, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
+  if (resetErr) return { error: resetErr.message };
+
+  const { error: setErr } = await supabase
+    .from("bank_accounts")
+    .update({ is_default: true, updated_at: new Date().toISOString() })
+    .eq("id", bankAccountId)
+    .eq("user_id", userId);
+
+  if (setErr) return { error: setErr.message };
+  return { error: null };
+}
+
+export async function removeBankAccount(
+  userId: string,
+  bankAccountId: string,
+): Promise<{ error: string | null }> {
+  const { data: target, error: targetErr } = await supabase
+    .from("bank_accounts")
+    .select("id,is_default")
+    .eq("id", bankAccountId)
+    .eq("user_id", userId)
+    .single();
+
+  if (targetErr || !target) return { error: targetErr?.message || "Bank account not found." };
+
+  const { error: deleteErr } = await supabase
+    .from("bank_accounts")
+    .delete()
+    .eq("id", bankAccountId)
+    .eq("user_id", userId);
+
+  if (deleteErr) return { error: deleteErr.message };
+
+  if (target.is_default) {
+    const { data: remaining } = await supabase
+      .from("bank_accounts")
+      .select("id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const fallback = remaining?.[0]?.id;
+    if (fallback) {
+      await supabase
+        .from("bank_accounts")
+        .update({ is_default: true, updated_at: new Date().toISOString() })
+        .eq("id", fallback)
+        .eq("user_id", userId);
+    }
+  }
+
+  return { error: null };
 }
 
 export async function fundWalletFromBankAccount(input: {
@@ -250,6 +320,20 @@ export async function fundWalletFromBankAccount(input: {
     type: "receive",
     note: input.note || `deposit:bank:last4=${bankAccount.account_last4}`,
     completed_at: new Date().toISOString(),
+  });
+
+  await supabase.from("funding_audit_events").insert({
+    user_id: input.userId,
+    provider: "internal_bank",
+    event_type: "wallet_funded",
+    external_ref: `bank_account:${input.bankAccountId}`,
+    amount: input.amount,
+    currency: bankAccount.currency || "USD",
+    status: "succeeded",
+    metadata: {
+      note: input.note || null,
+      account_last4: bankAccount.account_last4,
+    },
   });
 
   return { error: null };

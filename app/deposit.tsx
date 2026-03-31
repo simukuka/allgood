@@ -433,6 +433,13 @@ export default function DepositScreen() {
                 </>
               ) : (
                 <>
+                  <Pressable
+                    style={[styles.manageAccountsBtn, { borderColor: colors.primary }]}
+                    onPress={() => router.push("/bank-accounts")}
+                  >
+                    <Text style={[styles.manageAccountsTxt, { color: colors.primary }]}>Manage linked accounts</Text>
+                  </Pressable>
+
                   {bankAccounts.map((account) => (
                     <Pressable
                       key={account.id}
@@ -555,7 +562,7 @@ export default function DepositScreen() {
           </Pressable>
 
           <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-            Funds are added instantly to your AllGood balance. Bank and card deposits are simulated in this version.
+            Bank and card funding use secure connected rails. Final settlement times depend on provider processing windows.
           </Text>
 
         </ScrollView>
@@ -636,6 +643,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 13,
+  },
+  manageAccountsBtn: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  manageAccountsTxt: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   bankRow: {
     borderWidth: 1,

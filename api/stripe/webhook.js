@@ -44,7 +44,33 @@ module.exports = async function handler(req, res) {
   }
 
   if (event.type !== "checkout.session.completed") {
+    await supabaseAdmin.from("webhook_events").upsert(
+      {
+        provider: "stripe",
+        event_id: event.id,
+        event_type: event.type,
+        status: "processed",
+        payload: event,
+        processed_at: new Date().toISOString(),
+      },
+      { onConflict: "provider,event_id" },
+    );
     return json(res, 200, { received: true });
+  }
+
+  const { error: lockErr } = await supabaseAdmin.from("webhook_events").insert({
+    provider: "stripe",
+    event_id: event.id,
+    event_type: event.type,
+    status: "processing",
+    payload: event,
+  });
+
+  if (lockErr) {
+    if (lockErr.code === "23505") {
+      return json(res, 200, { received: true, deduplicated: true });
+    }
+    return json(res, 500, { error: lockErr.message });
   }
 
   const session = event.data.object;
@@ -54,6 +80,16 @@ module.exports = async function handler(req, res) {
   const currency = String(session?.currency || "usd").toUpperCase();
 
   if (!userId || amount <= 0) {
+    await supabaseAdmin
+      .from("webhook_events")
+      .update({
+        status: "failed",
+        error_message: "Missing user_id or amount in checkout session",
+        processed_at: new Date().toISOString(),
+      })
+      .eq("provider", "stripe")
+      .eq("event_id", event.id);
+
     return json(res, 400, { error: "Missing user_id or amount in checkout session" });
   }
 
@@ -66,6 +102,12 @@ module.exports = async function handler(req, res) {
     .maybeSingle();
 
   if (existingTx?.id) {
+    await supabaseAdmin
+      .from("webhook_events")
+      .update({ status: "processed", processed_at: new Date().toISOString() })
+      .eq("provider", "stripe")
+      .eq("event_id", event.id);
+
     return json(res, 200, { received: true, deduplicated: true });
   }
 
@@ -75,6 +117,16 @@ module.exports = async function handler(req, res) {
   });
 
   if (addErr) {
+    await supabaseAdmin
+      .from("webhook_events")
+      .update({
+        status: "failed",
+        error_message: addErr.message,
+        processed_at: new Date().toISOString(),
+      })
+      .eq("provider", "stripe")
+      .eq("event_id", event.id);
+
     return json(res, 500, { error: addErr.message });
   }
 
@@ -92,8 +144,39 @@ module.exports = async function handler(req, res) {
   });
 
   if (txErr) {
+    await supabaseAdmin
+      .from("webhook_events")
+      .update({
+        status: "failed",
+        error_message: txErr.message,
+        processed_at: new Date().toISOString(),
+      })
+      .eq("provider", "stripe")
+      .eq("event_id", event.id);
+
     return json(res, 500, { error: txErr.message });
   }
+
+  await supabaseAdmin.from("funding_audit_events").insert({
+    user_id: userId,
+    provider: "stripe",
+    event_type: event.type,
+    external_ref: session.id,
+    amount,
+    currency,
+    status: "succeeded",
+    metadata: {
+      method,
+      payment_intent: session.payment_intent || null,
+      mode: session.mode || null,
+    },
+  });
+
+  await supabaseAdmin
+    .from("webhook_events")
+    .update({ status: "processed", processed_at: new Date().toISOString() })
+    .eq("provider", "stripe")
+    .eq("event_id", event.id);
 
   return json(res, 200, { received: true });
 };

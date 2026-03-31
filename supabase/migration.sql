@@ -68,9 +68,17 @@ create table if not exists public.bank_accounts (
   currency text not null default 'USD',
   available_balance numeric(12, 2) not null default 0,
   is_verified boolean not null default true,
+  is_default boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.bank_accounts
+  add column if not exists is_default boolean not null default false;
+
+create unique index if not exists bank_accounts_one_default_per_user
+  on public.bank_accounts (user_id)
+  where is_default = true;
 
 alter table public.bank_accounts enable row level security;
 
@@ -84,6 +92,10 @@ create policy "Users can insert own bank accounts"
 
 create policy "Users can update own bank accounts"
   on public.bank_accounts for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own bank accounts"
+  on public.bank_accounts for delete
   using (auth.uid() = user_id);
 
 
@@ -110,6 +122,53 @@ create policy "Users can view own bank transfers"
 create policy "Users can insert own bank transfers"
   on public.bank_transfers for insert
   with check (auth.uid() = user_id);
+
+
+-- 4a. Webhook event lock table (idempotency)
+create table if not exists public.webhook_events (
+  id uuid default gen_random_uuid() primary key,
+  provider text not null,
+  event_id text not null,
+  event_type text not null,
+  status text not null default 'processing' check (status in ('processing', 'processed', 'failed')),
+  error_message text,
+  payload jsonb,
+  created_at timestamptz not null default now(),
+  processed_at timestamptz,
+  unique(provider, event_id)
+);
+
+alter table public.webhook_events enable row level security;
+
+create policy "Service role manages webhook events"
+  on public.webhook_events for all
+  using (auth.role() = 'service_role')
+  with check (auth.role() = 'service_role');
+
+
+-- 4b. Funding audit ledger
+create table if not exists public.funding_audit_events (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) on delete set null,
+  provider text not null,
+  event_type text not null,
+  external_ref text,
+  amount numeric(12,2) not null,
+  currency text not null default 'USD',
+  status text not null default 'succeeded' check (status in ('succeeded', 'failed')),
+  metadata jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table public.funding_audit_events enable row level security;
+
+create policy "Users can view own funding audit events"
+  on public.funding_audit_events for select
+  using (auth.uid() = user_id);
+
+create policy "Service role inserts funding audit events"
+  on public.funding_audit_events for insert
+  with check (auth.role() = 'service_role' or auth.uid() = user_id);
 
 
 -- 5. Transactions table

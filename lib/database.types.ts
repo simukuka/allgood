@@ -103,6 +103,7 @@ export type Database = {
           currency: string;
           available_balance: number;
           is_verified: boolean;
+          is_default: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -116,6 +117,7 @@ export type Database = {
           currency?: string;
           available_balance?: number;
           is_verified?: boolean;
+          is_default?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -127,6 +129,7 @@ export type Database = {
           currency?: string;
           available_balance?: number;
           is_verified?: boolean;
+          is_default?: boolean;
           updated_at?: string;
         };
         Relationships: [
@@ -179,6 +182,75 @@ export type Database = {
             foreignKeyName: "bank_transfers_bank_account_id_fkey";
             columns: ["bank_account_id"];
             referencedRelation: "bank_accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      webhook_events: {
+        Row: {
+          id: string;
+          provider: string;
+          event_id: string;
+          event_type: string;
+          status: "processing" | "processed" | "failed";
+          error_message: string | null;
+          payload: Json | null;
+          created_at: string;
+          processed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          provider: string;
+          event_id: string;
+          event_type: string;
+          status?: "processing" | "processed" | "failed";
+          error_message?: string | null;
+          payload?: Json | null;
+          created_at?: string;
+          processed_at?: string | null;
+        };
+        Update: {
+          status?: "processing" | "processed" | "failed";
+          error_message?: string | null;
+          payload?: Json | null;
+          processed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      funding_audit_events: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          provider: string;
+          event_type: string;
+          external_ref: string | null;
+          amount: number;
+          currency: string;
+          status: "succeeded" | "failed";
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          provider: string;
+          event_type: string;
+          external_ref?: string | null;
+          amount: number;
+          currency?: string;
+          status?: "succeeded" | "failed";
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          status?: "succeeded" | "failed";
+          metadata?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "funding_audit_events_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];

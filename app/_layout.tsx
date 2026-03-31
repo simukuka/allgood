@@ -76,6 +76,7 @@ function RootLayoutNav() {
         <Stack.Screen name="transfer-status" options={{ animation: "fade_from_bottom", animationDuration: 400 }} />
         {/* Detail pushes */}
         <Stack.Screen name="deposit" options={{ animation: "slide_from_bottom", animationDuration: 360 }} />
+        <Stack.Screen name="bank-accounts" options={{ animation: "slide_from_bottom", animationDuration: 360 }} />
         <Stack.Screen name="budget" />
         <Stack.Screen name="cards" />
         <Stack.Screen name="portfolio" />
