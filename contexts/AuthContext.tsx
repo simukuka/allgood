@@ -43,6 +43,19 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function buildPassportNumber(userId: string): string {
+  const raw = userId.replace(/-/g, "").toUpperCase();
+  const head = raw.slice(0, 4);
+  const tail = raw.slice(-4);
+  const check = raw
+    .split("")
+    .reduce((sum, ch) => sum + ch.charCodeAt(0), 0)
+    .toString()
+    .slice(-2)
+    .padStart(2, "0");
+  return `AG-${head}-${tail}-${check}`;
+}
+
 function mapAuthErrorMessage(rawMessage: string): string {
   const normalized = rawMessage.toLowerCase();
 
@@ -141,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: fallbackName,
             phone: phoneFromMeta,
             country: countryFromMeta,
+            passport_number: buildPassportNumber(user.id),
             dob: dobFromMeta,
             id_type: idTypeFromMeta,
             currency: "USD",
@@ -150,6 +164,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (upsertProfileError) {
         console.warn("Profile upsert failed:", upsertProfileError.message);
+      }
+    } else {
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("passport_number")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profileRow?.passport_number) {
+        await supabase
+          .from("profiles")
+          .update({ passport_number: buildPassportNumber(user.id) })
+          .eq("id", user.id);
       }
     }
 

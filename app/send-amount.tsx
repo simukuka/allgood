@@ -65,16 +65,20 @@ export default function SendAmountScreen() {
     }
 
     const lookupColumn = methodValue === "phone" ? "phone" : "email";
-    supabase
-      .from("profiles")
-      .select("currency")
-      .eq(lookupColumn, recipientValue)
-      .maybeSingle()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("currency")
+          .eq(lookupColumn, recipientValue)
+          .maybeSingle();
+
         const recipientCurrency = (data?.currency as CurrencyCode) || "MXN";
         setTargetCurrency(recipientCurrency);
-      })
-      .catch(() => setTargetCurrency("MXN"));
+      } catch {
+        setTargetCurrency("MXN");
+      }
+    })();
   }, [recipient, method]);
 
   // Live exchange rate state

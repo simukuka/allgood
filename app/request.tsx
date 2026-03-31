@@ -17,30 +17,10 @@ import { useTranslation } from "@/constants/i18n";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import { getContacts } from "@/lib/data";
+import { createMoneyRequest, getContacts } from "@/lib/data";
 import { hapticSuccess } from "@/lib/haptics";
+import { supabase } from "@/lib/supabase";
 import type { CurrencyCode } from "@/utils/currency";
-
-const FALLBACK_CONTACTS = [
-  {
-    id: "fb1",
-    flag_emoji: "🇲🇽",
-    contact_name: "Maria G.",
-    contact_email: "maria@email.com",
-  },
-  {
-    id: "fb2",
-    flag_emoji: "🇨🇴",
-    contact_name: "Carlos R.",
-    contact_email: "carlos@email.com",
-  },
-  {
-    id: "fb3",
-    flag_emoji: "🇧🇷",
-    contact_name: "Sofia L.",
-    contact_email: "sofia@email.com",
-  },
-];
 
 export default function RequestMoneyScreen() {
   const colors = useThemeColors();
@@ -55,6 +35,7 @@ export default function RequestMoneyScreen() {
       flag_emoji: string | null;
       contact_name: string;
       contact_email: string | null;
+      contact_phone: string | null;
     }>
   >([]);
   const [contactsLoading, setContactsLoading] = useState(true);
@@ -62,6 +43,8 @@ export default function RequestMoneyScreen() {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const loadContacts = useCallback(async () => {
     if (!user) return;
@@ -69,17 +52,16 @@ export default function RequestMoneyScreen() {
     try {
       const data = await getContacts(user.id);
       setContacts(
-        data.length > 0
-          ? data.map((c) => ({
-              id: c.id,
-              flag_emoji: c.flag_emoji,
-              contact_name: c.contact_name,
-              contact_email: c.contact_email,
-            }))
-          : FALLBACK_CONTACTS,
+        data.map((c) => ({
+          id: c.id,
+          flag_emoji: c.flag_emoji,
+          contact_name: c.contact_name,
+          contact_email: c.contact_email,
+          contact_phone: c.contact_phone,
+        })),
       );
     } catch {
-      setContacts(FALLBACK_CONTACTS);
+      setContacts([]);
     } finally {
       setContactsLoading(false);
     }
@@ -117,18 +99,73 @@ export default function RequestMoneyScreen() {
     );
   }
 
+  const handleSubmit = async () => {
+    if (!user || !profile || !selectedContact) return;
+    const amountNumber = Number(amount);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) return;
+
+    const selected = contacts.find((c) => c.id === selectedContact);
+    if (!selected) return;
+
+    setSending(true);
+    setSubmitError(null);
+
+    try {
+      const emailLookup = selected.contact_email?.trim();
+      const phoneLookup = selected.contact_phone?.trim();
+      if (!emailLookup && !phoneLookup) {
+        throw new Error("This contact needs a valid email or phone to request money.");
+      }
+
+      const lookupColumn = emailLookup ? "email" : "phone";
+      const lookupValue = emailLookup || phoneLookup || "";
+
+      const { data: payerProfile, error: payerError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq(lookupColumn, lookupValue)
+        .maybeSingle();
+
+      if (payerError) {
+        throw new Error("Could not verify that contact right now. Please try again.");
+      }
+
+      if (!payerProfile?.id) {
+        throw new Error("This contact is not on AllGood yet, so a real request cannot be sent.");
+      }
+
+      const { error } = await createMoneyRequest({
+        payerUserId: payerProfile.id,
+        requesterUserId: user.id,
+        requesterName: profile.full_name || "AllGood Member",
+        requesterEmail: profile.email,
+        amount: amountNumber,
+        currency: userCurrency,
+        note: note.trim() || `money_request:from=${selected.contact_name}`,
+      });
+
+      if (error) {
+        throw new Error(error);
+      }
+
+      hapticSuccess();
+      setSent(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Request failed. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <ScreenLayout
       footer={
         <View style={styles.footer}>
           <Button
-            title={t("sendRequest")}
-            onPress={() => {
-              hapticSuccess();
-              setSent(true);
-            }}
+            title={sending ? "Sending..." : t("sendRequest")}
+            onPress={handleSubmit}
             disabled={
-              selectedContact === null || !amount || parseFloat(amount) <= 0
+              sending || selectedContact === null || !amount || parseFloat(amount) <= 0
             }
           />
         </View>
@@ -144,7 +181,7 @@ export default function RequestMoneyScreen() {
           <View style={styles.contactLoadingWrap}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
-        ) : (
+        ) : contacts.length > 0 ? (
           contacts.map((c) => (
             <TouchableOpacity
               key={c.id}
@@ -172,7 +209,7 @@ export default function RequestMoneyScreen() {
                 <Text
                   style={[styles.contactEmail, { color: colors.textSecondary }]}
                 >
-                  {c.contact_email || ""}
+                  {c.contact_email || c.contact_phone || ""}
                 </Text>
               </View>
               {selectedContact === c.id && (
@@ -184,8 +221,22 @@ export default function RequestMoneyScreen() {
               )}
             </TouchableOpacity>
           ))
+        ) : (
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No contacts yet</Text>
+            <Text style={[styles.emptyDesc, { color: colors.textSecondary }]}>Add contacts through your send flow first, then request money here.</Text>
+          </View>
         )}
       </View>
+
+      {submitError && (
+        <Text style={[styles.errorText, { color: colors.error }]}>{submitError}</Text>
+      )}
 
       <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
         {t("requestAmount").toUpperCase()}
@@ -241,6 +292,20 @@ const styles = StyleSheet.create({
   },
   contactList: { gap: 10, marginBottom: 28 },
   contactLoadingWrap: { alignItems: "center", paddingVertical: 32 },
+  emptyCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   contactCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -272,6 +337,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     minHeight: 80,
     textAlignVertical: "top",
+  },
+  errorText: {
+    fontSize: 13,
+    marginTop: -16,
+    marginBottom: 16,
   },
   footer: { padding: 28, paddingBottom: 32 },
   successContent: {

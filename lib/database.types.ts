@@ -24,6 +24,7 @@ export type Database = {
           country: string | null;
           currency: string;
           rafiki_wallet_address_id: string | null;
+          passport_number: string | null;
           dob: string | null;
           id_type: string | null;
           created_at: string;
@@ -38,6 +39,7 @@ export type Database = {
           country?: string | null;
           currency?: string;
           rafiki_wallet_address_id?: string | null;
+          passport_number?: string | null;
           dob?: string | null;
           id_type?: string | null;
           created_at?: string;
@@ -52,6 +54,7 @@ export type Database = {
           country?: string | null;
           currency?: string;
           rafiki_wallet_address_id?: string | null;
+          passport_number?: string | null;
           dob?: string | null;
           id_type?: string | null;
           updated_at?: string;
@@ -295,7 +298,10 @@ export type Database = {
           completed_at?: string | null;
         };
         Update: {
+          recipient_id?: string | null;
+          recipient_name?: string;
           status?: "pending" | "completed" | "failed" | "cancelled";
+          note?: string | null;
           completed_at?: string | null;
         };
         Relationships: [

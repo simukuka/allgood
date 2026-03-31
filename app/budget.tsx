@@ -20,7 +20,13 @@ import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEntranceAnimation } from "@/hooks/useEntranceAnimation";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import { getMonthlyStats, getPrimaryBalance } from "@/lib/data";
+import {
+  getMonthlyBudgetSections,
+  getMonthlyStats,
+  getPrimaryBalance,
+  type BudgetSection,
+  type MoneyInsight,
+} from "@/lib/data";
 
 /* ── Animated circular progress ─────────────────────────── */
 function CircularProgress({
@@ -176,39 +182,7 @@ const barStyles = StyleSheet.create({
   fill: { height: 8, borderRadius: 4 },
 });
 
-// ── Demo categories (shown as estimated breakdown based on typical spending) ──
-const DEMO_CATEGORIES = [
-  {
-    icon: "home-outline" as const,
-    name: "Rent & Bills",
-    pct: 0.42,
-    color: "#3b82f6",
-  },
-  {
-    icon: "restaurant-outline" as const,
-    name: "Food & Dining",
-    pct: 0.22,
-    color: "#f97316",
-  },
-  {
-    icon: "cash-outline" as const,
-    name: "Remittances",
-    pct: 0.18,
-    color: "#10b981",
-  },
-  {
-    icon: "car-outline" as const,
-    name: "Transport",
-    pct: 0.10,
-    color: "#8b5cf6",
-  },
-  {
-    icon: "cart-outline" as const,
-    name: "Shopping",
-    pct: 0.08,
-    color: "#ec4899",
-  },
-];
+const SECTION_COLORS = ["#3b82f6", "#10b981", "#f97316", "#8b5cf6", "#ec4899", "#06b6d4"];
 
 export default function BudgetScreen() {
   const colors = useThemeColors();
@@ -223,19 +197,26 @@ export default function BudgetScreen() {
   const [totalSent, setTotalSent] = useState(0);
   const [totalReceived, setTotalReceived] = useState(0);
   const [transferCount, setTransferCount] = useState(0);
+  const [incomeSections, setIncomeSections] = useState<BudgetSection[]>([]);
+  const [expenseSections, setExpenseSections] = useState<BudgetSection[]>([]);
+  const [insights, setInsights] = useState<MoneyInsight[]>([]);
 
   useEffect(() => {
     if (!user) return;
     const loadData = async () => {
       setLoading(true);
-      const [{ balance: bal }, stats] = await Promise.all([
+      const [{ balance: bal }, stats, budgetSections] = await Promise.all([
         getPrimaryBalance(user.id),
         getMonthlyStats(user.id),
+        getMonthlyBudgetSections(user.id),
       ]);
       setBalance(bal);
       setTotalSent(stats.totalSent);
       setTotalReceived(stats.totalReceived);
       setTransferCount(stats.transferCount);
+      setIncomeSections(budgetSections.incomeSections);
+      setExpenseSections(budgetSections.expenseSections);
+      setInsights(budgetSections.insights);
       setLoading(false);
     };
     loadData();
@@ -366,19 +347,16 @@ export default function BudgetScreen() {
             </View>
           )}
 
-          {/* ── Spending estimate (demo categories) ──── */}
-          {!loading && totalSent > 0 && (
+          {/* ── Expense sections ──── */}
+          {!loading && expenseSections.length > 0 && (
             <>
               <View style={styles.sectionHeaderRow}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Spending estimate
+                  Outgoing sections
                 </Text>
-                <View style={[styles.demoBadge, { backgroundColor: colors.warning + "20", borderColor: colors.warning + "40" }]}>
-                  <Text style={[styles.demoBadgeTxt, { color: colors.warning }]}>Demo data</Text>
-                </View>
               </View>
               <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-                Category breakdown based on typical spending patterns. Connect accounts for real data.
+                Real monthly breakdown from your completed transactions.
               </Text>
 
               <View
@@ -387,11 +365,11 @@ export default function BudgetScreen() {
                   { backgroundColor: colors.cardBg, borderColor: colors.border },
                 ]}
               >
-                {DEMO_CATEGORIES.map((cat, i) => {
-                  const catAmount = totalSent * cat.pct;
+                {expenseSections.map((section, i) => {
+                  const color = SECTION_COLORS[i % SECTION_COLORS.length];
                   return (
                     <View
-                      key={i}
+                      key={section.key}
                       style={[
                         styles.catRow,
                         i > 0 && {
@@ -404,30 +382,92 @@ export default function BudgetScreen() {
                         <View
                           style={[
                             styles.catIconWrap,
-                            { backgroundColor: cat.color + "15" },
+                            { backgroundColor: color + "15" },
                           ]}
                         >
-                          <Ionicons name={cat.icon} size={18} color={cat.color} />
+                          <Ionicons name="arrow-up-circle-outline" size={18} color={color} />
                         </View>
                         <View style={styles.catInfo}>
                           <Text style={[styles.catName, { color: colors.text }]}>
-                            {cat.name}
+                            {section.label}
                           </Text>
                           <Text
                             style={[styles.catAmounts, { color: colors.textSecondary }]}
                           >
-                            ~${catAmount.toFixed(0)} this month
+                            ${section.amount.toFixed(2)} this month
                           </Text>
                         </View>
-                        <Text style={[styles.catPercent, { color: cat.color }]}>
-                          {Math.round(cat.pct * 100)}%
+                        <Text style={[styles.catPercent, { color }]}> 
+                          {Math.round(section.percent)}%
                         </Text>
                       </View>
                       <AnimatedBar
-                        percent={cat.pct * 100}
-                        color={cat.color}
+                        percent={section.percent}
+                        color={color}
                         bgColor={colors.border + "40"}
                         delay={i * 150}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {!loading && incomeSections.length > 0 && (
+            <>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}> 
+                  Income sections
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.categoriesCard,
+                  { backgroundColor: colors.cardBg, borderColor: colors.border },
+                ]}
+              >
+                {incomeSections.map((section, i) => {
+                  const color = SECTION_COLORS[(i + 2) % SECTION_COLORS.length];
+                  return (
+                    <View
+                      key={section.key}
+                      style={[
+                        styles.catRow,
+                        i > 0 && {
+                          borderTopWidth: 1,
+                          borderTopColor: colors.border + "60",
+                        },
+                      ]}
+                    >
+                      <View style={styles.catHeader}>
+                        <View
+                          style={[
+                            styles.catIconWrap,
+                            { backgroundColor: color + "15" },
+                          ]}
+                        >
+                          <Ionicons name="arrow-down-circle-outline" size={18} color={color} />
+                        </View>
+                        <View style={styles.catInfo}>
+                          <Text style={[styles.catName, { color: colors.text }]}> 
+                            {section.label}
+                          </Text>
+                          <Text
+                            style={[styles.catAmounts, { color: colors.textSecondary }]}
+                          >
+                            ${section.amount.toFixed(2)} this month
+                          </Text>
+                        </View>
+                        <Text style={[styles.catPercent, { color }]}> 
+                          {Math.round(section.percent)}%
+                        </Text>
+                      </View>
+                      <AnimatedBar
+                        percent={section.percent}
+                        color={color}
+                        bgColor={colors.border + "40"}
+                        delay={i * 120}
                       />
                     </View>
                   );
@@ -510,6 +550,60 @@ export default function BudgetScreen() {
                   </Text>
                 </View>
               ) : null}
+            </View>
+          )}
+
+          {!loading && insights.length > 0 && (
+            <View
+              style={[
+                styles.incomeCard,
+                { backgroundColor: colors.cardBg, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.incomeHeader}>
+                <LinearGradient
+                  colors={colors.gradientAccent as unknown as [string, string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.incomeIconWrap}
+                >
+                  <Ionicons name="sparkles" size={20} color="#fff" />
+                </LinearGradient>
+                <Text style={[styles.incomeTitle, { color: colors.text }]}> 
+                  AI money insights
+                </Text>
+              </View>
+
+              {insights.map((item, index) => (
+                <View
+                  key={`${item.title}-${index}`}
+                  style={[
+                    styles.insightRow,
+                    index < insights.length - 1 && {
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.insightDot,
+                      {
+                        backgroundColor:
+                          item.level === "good"
+                            ? colors.success
+                            : item.level === "warn"
+                              ? colors.warning
+                              : colors.primary,
+                      },
+                    ]}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.insightTitle, { color: colors.text }]}>{item.title}</Text>
+                    <Text style={[styles.insightText, { color: colors.textSecondary }]}>{item.detail}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -773,6 +867,26 @@ const styles = StyleSheet.create({
   },
   incomeBarItem: {
     gap: 6,
+  },
+  insightRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 10,
+  },
+  insightDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 6,
+  },
+  insightTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  insightText: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   incomeBarLabelRow: {
     flexDirection: "row",

@@ -36,6 +36,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { ScreenLayout } from "@/components/ScreenLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { getRecentTransactions, getPrimaryBalance } from "@/lib/data";
+import { fetchExchangeRates } from "@/lib/exchange-rates";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import {
   fontSizes,
@@ -89,12 +90,12 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 56; // SCREEN_PADDING_H * 2
 
 const COUNTRIES = [
-  { flag: "🇲🇽", name: "Mexico" },
-  { flag: "🇧🇷", name: "Brazil" },
-  { flag: "🇨🇴", name: "Colombia" },
-  { flag: "🇵🇭", name: "Philippines" },
-  { flag: "🇮🇳", name: "India" },
-  { flag: "🇬🇹", name: "Guatemala" },
+  { flag: "🇲🇽", name: "Mexico", currency: "MXN" },
+  { flag: "🇧🇷", name: "Brazil", currency: "BRL" },
+  { flag: "🇨🇴", name: "Colombia", currency: "COP" },
+  { flag: "🇵🇭", name: "Philippines", currency: "USD" },
+  { flag: "🇮🇳", name: "India", currency: "USD" },
+  { flag: "🇬🇹", name: "Guatemala", currency: "USD" },
 ];
 
 const BENEFITS = [
@@ -527,6 +528,7 @@ export default function FinancialPassportScreen() {
   const [creditScore, setCreditScore] = useState(580);
   const [completedTxCount, setCompletedTxCount] = useState(0);
   const [totalTxCount, setTotalTxCount] = useState(0);
+  const [fxRates, setFxRates] = useState<Record<string, number>>({ USD: 1 });
   const toastOp = useSharedValue(0);
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -536,9 +538,8 @@ export default function FinancialPassportScreen() {
   const toastStyle = useAnimatedStyle(() => ({ opacity: toastOp.value }));
   const accordionHeight = useSharedValue(0);
 
-  const passportNumber = user?.id
-    ? formatPassportNumber(user.id)
-    : "AG-XXXXXXXX";
+  const passportNumber = profile?.passport_number
+    || (user?.id ? formatPassportNumber(user.id) : "AG-PENDING");
   const memberSince = formatMemberSince(profile?.created_at);
   const accountAgeMonths = getAccountAgeMonths(profile?.created_at);
 
@@ -563,6 +564,12 @@ export default function FinancialPassportScreen() {
     })();
   }, [user?.id, accountAgeMonths]);
 
+  useEffect(() => {
+    fetchExchangeRates()
+      .then((rates) => setFxRates(rates))
+      .catch(() => setFxRates({ USD: 1 }));
+  }, []);
+
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
@@ -582,6 +589,35 @@ export default function FinancialPassportScreen() {
       // User cancelled share sheet — no-op
     }
   }, [creditScore, passportNumber, memberSince]);
+
+  const handleExportPassport = useCallback(async () => {
+    if (!user) return;
+    const verificationId = `AG-${user.id.slice(0, 8).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    const payload = {
+      verificationId,
+      holder: profile?.full_name || "AllGood Member",
+      passportNumber,
+      memberSince,
+      creditScore,
+      scoreBand: scoreLabel(creditScore),
+      recognizedCountries: COUNTRIES.map((c) => c.name),
+      exportedAt: new Date().toISOString(),
+      network: "AllGood ILP Passport Network",
+      note: "Present this package to partner lenders/landlords for cross-border credit continuity.",
+    };
+
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    try {
+      await Share.share({
+        title: "AllGood Financial Passport Package",
+        message: JSON.stringify(payload, null, 2),
+      });
+      showToast("Passport package exported successfully.");
+    } catch {
+      // ignored
+    }
+  }, [user, profile?.full_name, passportNumber, memberSince, creditScore, showToast]);
 
   const toggleHowItWorks = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -703,8 +739,40 @@ export default function FinancialPassportScreen() {
           ))}
         </View>
         <Text style={[styles.moreCountriesNote, { color: colors.textSecondary }]}>
-          More countries coming soon
+          Use your exported passport package with partner institutions in these regions.
         </Text>
+
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: spacing.md },
+          ]}
+        >
+          {COUNTRIES.map((country, index) => (
+            <View
+              key={country.name}
+              style={[
+                styles.countryDetailRow,
+                index < COUNTRIES.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={styles.countryFlag}>{country.flag}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.countryDetailName, { color: colors.text }]}>{country.name}</Text>
+                <Text style={[styles.countryDetailSub, { color: colors.textSecondary }]}> 
+                  Local currency rate: 1 USD = {(fxRates[country.currency] || 1).toFixed(2)} {country.currency}
+                </Text>
+              </View>
+              <View style={styles.countryReadyBadge}>
+                <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                <Text style={styles.countryReadyText}>Ready</Text>
+              </View>
+            </View>
+          ))}
+        </View>
       </Section>
 
       <View style={styles.gap} />
@@ -793,21 +861,32 @@ export default function FinancialPassportScreen() {
 
       {/* ── Share Passport button ── */}
       <Section delay={850}>
-        <Pressable
-          onPress={handleShare}
-          accessibilityLabel="Share your Financial Passport"
-          accessibilityRole="button"
-        >
-          <LinearGradient
-            colors={[PASSPORT_MID, PASSPORT_DARK]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.shareButton}
+        <View style={{ gap: spacing.md }}>
+          <Pressable
+            onPress={handleShare}
+            accessibilityLabel="Share your Financial Passport"
+            accessibilityRole="button"
           >
-            <Ionicons name="share-social" size={20} color={PASSPORT_GOLD} />
-            <Text style={styles.shareButtonText}>Share Passport</Text>
-          </LinearGradient>
-        </Pressable>
+            <LinearGradient
+              colors={[PASSPORT_MID, PASSPORT_DARK]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.shareButton}
+            >
+              <Ionicons name="share-social" size={20} color={PASSPORT_GOLD} />
+              <Text style={styles.shareButtonText}>Share Passport</Text>
+            </LinearGradient>
+          </Pressable>
+          <Pressable
+            onPress={handleExportPassport}
+            accessibilityLabel="Export verifiable Financial Passport package"
+            accessibilityRole="button"
+            style={[styles.exportButton, { borderColor: colors.border, backgroundColor: colors.cardBg }]}
+          >
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+            <Text style={[styles.exportButtonText, { color: colors.text }]}>Export verified passport package</Text>
+          </Pressable>
+        </View>
       </Section>
 
       <View style={{ height: spacing["4xl"] }} />
@@ -1086,6 +1165,34 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.sm,
   },
+  countryDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  countryDetailName: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+  },
+  countryDetailSub: {
+    fontSize: fontSizes.xs,
+    marginTop: 2,
+  },
+  countryReadyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#22c55e1A",
+    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  countryReadyText: {
+    color: "#22c55e",
+    fontSize: fontSizes.xs,
+    fontWeight: fontWeights.bold,
+  },
   countryPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -1176,6 +1283,20 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.bold,
     color: PASSPORT_GOLD,
     letterSpacing: 0.5,
+  },
+  exportButton: {
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  exportButtonText: {
+    fontSize: fontSizes.base,
+    fontWeight: fontWeights.semibold,
   },
 
   // ── Toast ──

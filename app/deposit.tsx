@@ -435,7 +435,7 @@ export default function DepositScreen() {
                 <>
                   <Pressable
                     style={[styles.manageAccountsBtn, { borderColor: colors.primary }]}
-                    onPress={() => router.push("/bank-accounts")}
+                    onPress={() => router.push("/bank-accounts" as never)}
                   >
                     <Text style={[styles.manageAccountsTxt, { color: colors.primary }]}>Manage linked accounts</Text>
                   </Pressable>

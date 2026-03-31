@@ -97,6 +97,7 @@ export default function SignupScreen() {
   const [pass, setPass]       = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -152,7 +153,7 @@ export default function SignupScreen() {
     fullName.trim().length >= 2 && dob.replace(/\D/g,'').length === 8 &&
       phone.replace(/\D/g,'').length >= 8 && country.trim().length >= 2,
     idNumber.trim().length >= 4,
-    emailRx.test(email.trim()) && pass.length >= 6 && pass === confirm,
+    emailRx.test(email.trim()) && pass.length >= 6 && pass === confirm && acceptedTerms,
   ];
 
   const advance = () => {
@@ -473,9 +474,22 @@ export default function SignupScreen() {
                   )}
                 </View>
 
-                <Text style={s.termsTxt}>
-                  By creating an account you agree to our Terms of Service and Privacy Policy.
-                </Text>
+                <Pressable
+                  style={s.termsRow}
+                  onPress={() => setAcceptedTerms((prev) => !prev)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: acceptedTerms }}
+                  accessibilityLabel="Accept Terms of Service and Privacy Policy"
+                >
+                  <View style={[s.termsCheck, acceptedTerms && s.termsCheckOn]}>
+                    {acceptedTerms && (
+                      <Ionicons name="checkmark" size={12} color={WHITE} />
+                    )}
+                  </View>
+                  <Text style={s.termsTxt}>
+                    I agree to the Terms of Service and Privacy Policy.
+                  </Text>
+                </Pressable>
               </>
             )}
 
@@ -657,7 +671,27 @@ const s = StyleSheet.create({
   },
   ghostBtnTxt: { fontSize: 15, fontWeight: '600' },
 
-  termsTxt: { fontSize: 12, color: MUTED, lineHeight: 18, marginBottom: 20, textAlign: 'center' },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 20,
+  },
+  termsCheck: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  termsCheckOn: {
+    backgroundColor: HERO1,
+    borderColor: HERO1,
+  },
+  termsTxt: { flex: 1, fontSize: 12, color: MUTED, lineHeight: 18 },
 
   errBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

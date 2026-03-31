@@ -2,6 +2,7 @@
  * Login — vibrant gradient header, clean dark form.
  */
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -45,6 +46,7 @@ const MUTED  = 'rgba(240,240,255,0.5)';
 const TEAL   = '#2EFFD5';
 const ERR    = '#FF6B6B';
 const ERR_BG = 'rgba(255,107,107,0.12)';
+const LAST_LOGIN_EMAIL_KEY = '@allgood_last_login_email';
 
 export default function LoginScreen() {
   const { signIn, resetPassword } = useAuth();
@@ -89,6 +91,9 @@ export default function LoginScreen() {
         setBioType(await getBiometricType());
         setBioEnabled(await getBiometricPreference());
       }
+
+      const rememberedEmail = await AsyncStorage.getItem(LAST_LOGIN_EMAIL_KEY);
+      if (rememberedEmail) setEmail(rememberedEmail);
     })();
   }, []);
 
@@ -106,7 +111,10 @@ export default function LoginScreen() {
     try {
       const { error: err } = await signIn(email.trim(), pass);
       if (err) setError(err);
-      else router.replace('/(tabs)');
+      else {
+        await AsyncStorage.setItem(LAST_LOGIN_EMAIL_KEY, email.trim());
+        router.replace('/(tabs)');
+      }
     } catch (e: any) { setError(e?.message ?? 'Something went wrong.'); }
     finally { setLoading(false); }
   };
@@ -120,7 +128,10 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const { error: err } = await signIn(email.trim(), pass);
-      if (err) setError(err); else router.replace('/(tabs)');
+      if (err) setError(err); else {
+        await AsyncStorage.setItem(LAST_LOGIN_EMAIL_KEY, email.trim());
+        router.replace('/(tabs)');
+      }
     } catch (e: any) { setError(e?.message ?? 'Something went wrong.'); }
     finally { setLoading(false); }
   };
@@ -308,7 +319,7 @@ export default function LoginScreen() {
 
             <Pressable
               style={s.createBtn}
-              onPress={() => router.replace('/(onboarding)/signup')}
+              onPress={() => router.replace('/(onboarding)/create-account')}
               accessibilityRole="link"
               accessibilityLabel="Create a free account"
             >

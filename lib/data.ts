@@ -98,6 +98,40 @@ export async function createTransaction(
   return { data: data as Transaction, error: null };
 }
 
+export async function createMoneyRequest(input: {
+  payerUserId: string;
+  requesterUserId: string;
+  requesterName: string;
+  requesterEmail?: string | null;
+  amount: number;
+  currency?: string;
+  note?: string;
+}): Promise<{ data: Transaction | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .insert({
+      sender_id: input.payerUserId,
+      recipient_id: input.requesterUserId,
+      recipient_email: input.requesterEmail || null,
+      recipient_phone: null,
+      recipient_name: input.requesterName,
+      amount: input.amount,
+      currency: input.currency || "USD",
+      converted_amount: null,
+      converted_currency: null,
+      exchange_rate: null,
+      fee: 0,
+      status: "pending",
+      type: "request",
+      note: input.note || null,
+    })
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as Transaction, error: null };
+}
+
 export async function updateTransactionStatus(
   transactionId: string,
   status: Transaction["status"],
@@ -415,6 +449,348 @@ export async function upsertContact(
   });
   if (error) return { error: error.message };
   return { error: null };
+}
+
+export async function getTrustedContacts(userId: string): Promise<Contact[]> {
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_favorite", true)
+    .order("last_sent_at", { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.warn("getTrustedContacts error:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+export async function setContactTrusted(
+  userId: string,
+  contactId: string,
+  trusted: boolean,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("contacts")
+    .update({ is_favorite: trusted })
+    .eq("id", contactId)
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function ensureTrustedContact(input: {
+  userId: string;
+  contactName: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  countryCode?: string | null;
+  flagEmoji?: string | null;
+}): Promise<{ error: string | null }> {
+  if (input.contactEmail) {
+    const { error } = await supabase.from("contacts").upsert(
+      {
+        user_id: input.userId,
+        contact_name: input.contactName,
+        contact_email: input.contactEmail,
+        contact_phone: input.contactPhone || null,
+        country_code: input.countryCode || null,
+        flag_emoji: input.flagEmoji || null,
+        is_favorite: true,
+      },
+      { onConflict: "user_id,contact_email" },
+    );
+    if (error) return { error: error.message };
+    return { error: null };
+  }
+
+  const { data: existing, error: existingErr } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("contact_phone", input.contactPhone || "")
+    .maybeSingle();
+
+  if (existingErr) return { error: existingErr.message };
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from("contacts")
+      .update({
+        contact_name: input.contactName,
+        country_code: input.countryCode || null,
+        flag_emoji: input.flagEmoji || null,
+        is_favorite: true,
+      })
+      .eq("id", existing.id)
+      .eq("user_id", input.userId);
+
+    if (error) return { error: error.message };
+    return { error: null };
+  }
+
+  const { error } = await supabase.from("contacts").insert({
+    user_id: input.userId,
+    contact_name: input.contactName,
+    contact_email: null,
+    contact_phone: input.contactPhone || null,
+    country_code: input.countryCode || null,
+    flag_emoji: input.flagEmoji || null,
+    is_favorite: true,
+  });
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function recordRecentContact(input: {
+  userId: string;
+  contactName: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+}): Promise<void> {
+  if (!input.contactEmail && !input.contactPhone) return;
+
+  const findByColumn = input.contactEmail ? "contact_email" : "contact_phone";
+  const findValue = input.contactEmail || input.contactPhone;
+
+  const { data: existing } = await supabase
+    .from("contacts")
+    .select("id,is_favorite")
+    .eq("user_id", input.userId)
+    .eq(findByColumn, findValue as string)
+    .maybeSingle();
+
+  if (existing?.id) {
+    await supabase
+      .from("contacts")
+      .update({
+        contact_name: input.contactName,
+        last_sent_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("user_id", input.userId);
+    return;
+  }
+
+  if (input.contactEmail) {
+    await supabase.from("contacts").upsert(
+      {
+        user_id: input.userId,
+        contact_name: input.contactName,
+        contact_email: input.contactEmail,
+        contact_phone: input.contactPhone || null,
+        is_favorite: false,
+        last_sent_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,contact_email" },
+    );
+    return;
+  }
+
+  await supabase.from("contacts").insert({
+    user_id: input.userId,
+    contact_name: input.contactName,
+    contact_email: null,
+    contact_phone: input.contactPhone || null,
+    is_favorite: false,
+    last_sent_at: new Date().toISOString(),
+  });
+}
+
+export async function isTrustedRecipient(input: {
+  userId: string;
+  method: "email" | "phone" | "wallet";
+  recipient: string;
+}): Promise<boolean> {
+  if (input.method === "wallet") return false;
+
+  const column = input.method === "email" ? "contact_email" : "contact_phone";
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("is_favorite", true)
+    .eq(column, input.recipient)
+    .maybeSingle();
+
+  if (error) return false;
+  return Boolean(data?.id);
+}
+
+export interface BudgetSection {
+  key: string;
+  label: string;
+  amount: number;
+  percent: number;
+}
+
+export interface MoneyInsight {
+  title: string;
+  detail: string;
+  level: "good" | "warn" | "info";
+}
+
+const EXPENSE_LABELS: Record<string, string> = {
+  housing: "Housing & Bills",
+  food: "Food & Dining",
+  transport: "Transport",
+  remittance: "Remittances",
+  shopping: "Shopping",
+  fees: "Fees",
+  other: "Other",
+};
+
+const INCOME_LABELS: Record<string, string> = {
+  salary: "Salary",
+  refund: "Refunds",
+  transfer_in: "Incoming transfers",
+  deposit: "Deposits",
+  other: "Other income",
+};
+
+function classifyExpense(note: string, recipientName: string): keyof typeof EXPENSE_LABELS {
+  const text = `${note} ${recipientName}`.toLowerCase();
+  if (/rent|utility|bill|electric|water|internet/.test(text)) return "housing";
+  if (/food|restaurant|dining|grocery|meal/.test(text)) return "food";
+  if (/uber|lyft|taxi|bus|fuel|transport/.test(text)) return "transport";
+  if (/remit|family|home/.test(text)) return "remittance";
+  if (/shop|market|store|amazon/.test(text)) return "shopping";
+  if (/fee|charge/.test(text)) return "fees";
+  return "other";
+}
+
+function classifyIncome(note: string, recipientName: string): keyof typeof INCOME_LABELS {
+  const text = `${note} ${recipientName}`.toLowerCase();
+  if (/salary|payroll|wage|employer/.test(text)) return "salary";
+  if (/refund|reversal/.test(text)) return "refund";
+  if (/deposit|topup|stripe/.test(text)) return "deposit";
+  if (/transfer|payment/.test(text)) return "transfer_in";
+  return "other";
+}
+
+function mapSections(
+  totals: Record<string, number>,
+  totalAmount: number,
+  labels: Record<string, string>,
+): BudgetSection[] {
+  return Object.entries(totals)
+    .filter(([, amount]) => amount > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, amount]) => ({
+      key,
+      label: labels[key] || key,
+      amount,
+      percent: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
+    }));
+}
+
+export async function getMonthlyBudgetSections(userId: string): Promise<{
+  incomeTotal: number;
+  expenseTotal: number;
+  incomeSections: BudgetSection[];
+  expenseSections: BudgetSection[];
+  insights: MoneyInsight[];
+}> {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("amount,sender_id,recipient_name,note,status")
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .gte("created_at", startOfMonth.toISOString())
+    .eq("status", "completed");
+
+  if (error || !data) {
+    return {
+      incomeTotal: 0,
+      expenseTotal: 0,
+      incomeSections: [],
+      expenseSections: [],
+      insights: [],
+    };
+  }
+
+  const incomeBuckets: Record<string, number> = {};
+  const expenseBuckets: Record<string, number> = {};
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+
+  data.forEach((tx) => {
+    const amount = Number(tx.amount || 0);
+    const note = String(tx.note || "");
+    const recipientName = String(tx.recipient_name || "");
+
+    if (tx.sender_id === userId) {
+      const bucket = classifyExpense(note, recipientName);
+      expenseBuckets[bucket] = (expenseBuckets[bucket] || 0) + amount;
+      expenseTotal += amount;
+    } else {
+      const bucket = classifyIncome(note, recipientName);
+      incomeBuckets[bucket] = (incomeBuckets[bucket] || 0) + amount;
+      incomeTotal += amount;
+    }
+  });
+
+  const incomeSections = mapSections(incomeBuckets, incomeTotal, INCOME_LABELS);
+  const expenseSections = mapSections(expenseBuckets, expenseTotal, EXPENSE_LABELS);
+
+  const net = incomeTotal - expenseTotal;
+  const remittanceSpend = expenseBuckets.remittance || 0;
+  const topExpense = expenseSections[0];
+
+  const insights: MoneyInsight[] = [];
+
+  if (incomeTotal === 0 && expenseTotal === 0) {
+    insights.push({
+      title: "No activity yet",
+      detail: "Start with your first transfer or deposit to unlock personalized money insights.",
+      level: "info",
+    });
+  } else {
+    insights.push(
+      net >= 0
+        ? {
+            title: "Positive cash flow",
+            detail: `You are up $${net.toFixed(2)} this month. Keep this pace to build your emergency fund.`,
+            level: "good",
+          }
+        : {
+            title: "Spending exceeds inflow",
+            detail: `You are down $${Math.abs(net).toFixed(2)} this month. Consider lowering your top category spend.`,
+            level: "warn",
+          },
+    );
+
+    if (topExpense) {
+      insights.push({
+        title: `Top spend: ${topExpense.label}`,
+        detail: `${topExpense.percent.toFixed(0)}% of your outgoing money is in ${topExpense.label.toLowerCase()}.`,
+        level: "info",
+      });
+    }
+
+    if (remittanceSpend > 0) {
+      insights.push({
+        title: "Family support tracked",
+        detail: `You sent $${remittanceSpend.toFixed(2)} in remittances this month. This helps your Financial Passport history.`,
+        level: "good",
+      });
+    }
+  }
+
+  return {
+    incomeTotal,
+    expenseTotal,
+    incomeSections,
+    expenseSections,
+    insights: insights.slice(0, 3),
+  };
 }
 
 // ─── Scheduled Transfers ─────────────────────────────────────

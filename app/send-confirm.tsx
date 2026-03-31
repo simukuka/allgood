@@ -22,9 +22,16 @@ import {
   addFundsToChecking,
   appendTransactionNote,
   createTransaction,
+  isTrustedRecipient,
+  recordRecentContact,
   updateTransactionStatus,
 } from "@/lib/data";
 import { hapticError, hapticSuccess } from "@/lib/haptics";
+import {
+  authenticateWithBiometrics,
+  getBiometricPreference,
+  isBiometricAvailable,
+} from "@/lib/biometrics";
 import { isRafikiGraphqlConfigured } from "@/lib/rafiki-graphql";
 import { formatIlpErrorForDisplay } from "@/lib/rafiki-errors";
 import { resolveRecipientWallet } from "@/lib/rafiki-wallet";
@@ -195,16 +202,35 @@ export default function SendConfirmScreen() {
     setTxError(null);
 
     let createdTransactionId: string | null = null;
-    let transferAmount = 0;
+    const paymentMethod = params.method || "email";
+    const recipientRaw = params.recipient ?? "";
+    const transferAmount = parseFloat(params.amount ?? "0");
+    const recipientName =
+      paymentMethod === "email"
+        ? recipientRaw.split("@")[0] || "Recipient"
+        : recipientRaw;
 
     try {
-      const paymentMethod = params.method || "email";
-      const recipientRaw = params.recipient ?? "";
-      transferAmount = parseFloat(params.amount ?? "0");
-      const recipientName =
-        paymentMethod === "email"
-          ? recipientRaw.split("@")[0] || "Recipient"
-          : recipientRaw;
+      const [biometricEnabled, biometricAvailable, trustedRecipient] = await Promise.all([
+        getBiometricPreference(),
+        isBiometricAvailable(),
+        isTrustedRecipient({
+          userId: user.id,
+          method: paymentMethod,
+          recipient: recipientRaw,
+        }),
+      ]);
+
+      if (biometricEnabled && biometricAvailable) {
+        const biometricOk = await authenticateWithBiometrics(
+          `Confirm $${transferAmount.toFixed(2)} transfer`,
+        );
+        if (!biometricOk) {
+          setTxError("Biometric verification is required to confirm transfers.");
+          setSending(false);
+          return;
+        }
+      }
 
       // Create the local transaction record first so we always have an audit trail
       const { data: txData, error: txCreateError } = await createTransaction({
@@ -221,7 +247,7 @@ export default function SendConfirmScreen() {
         fee: 0,
         status: "pending",
         type: "send",
-        note: `payment_method:${paymentMethod}`,
+        note: `payment_method:${paymentMethod};trusted_contact:${trustedRecipient}`,
       });
 
       if (txCreateError || !txData) {
@@ -323,6 +349,15 @@ export default function SendConfirmScreen() {
         }
 
         setFinalStatus("completed");
+      }
+
+      if (paymentMethod === "email" || paymentMethod === "phone") {
+        await recordRecentContact({
+          userId: user.id,
+          contactName: recipientName,
+          contactEmail: paymentMethod === "email" ? recipientRaw : null,
+          contactPhone: paymentMethod === "phone" ? recipientRaw : null,
+        });
       }
 
       setTransactionId(txData.id);

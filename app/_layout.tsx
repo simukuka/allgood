@@ -58,7 +58,7 @@ function RootLayoutNav() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: "ios",
+          animation: "slide_from_right",
           animationDuration: 340,
           gestureEnabled: true,
           gestureDirection: "horizontal",
@@ -77,6 +77,7 @@ function RootLayoutNav() {
         {/* Detail pushes */}
         <Stack.Screen name="deposit" options={{ animation: "slide_from_bottom", animationDuration: 360 }} />
         <Stack.Screen name="bank-accounts" options={{ animation: "slide_from_bottom", animationDuration: 360 }} />
+        <Stack.Screen name="trusted-contacts" options={{ animation: "slide_from_bottom", animationDuration: 360 }} />
         <Stack.Screen name="budget" />
         <Stack.Screen name="cards" />
         <Stack.Screen name="portfolio" />

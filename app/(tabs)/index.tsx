@@ -51,6 +51,7 @@ export default function HomeScreen() {
   const [monthlyChange, setMonthlyChange] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [monthlyStats, setMonthlyStats] = useState({ totalSent: 0, totalReceived: 0, transferCount: 0, avgTransfer: 0 });
+  const [passportScore, setPassportScore] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,6 +94,21 @@ export default function HomeScreen() {
       setMonthlyChange(change);
       setTransactions(txs);
       setMonthlyStats(stats);
+
+      const completed = txs.filter((tx) => tx.status === "completed").length;
+      const now = new Date();
+      const created = user.created_at ? new Date(user.created_at) : now;
+      const accountAgeMonths = Math.max(
+        0,
+        (now.getFullYear() - created.getFullYear()) * 12 +
+          (now.getMonth() - created.getMonth()),
+      );
+      let score = 580;
+      score += Math.min(80, (accountAgeMonths / 24) * 80);
+      score += Math.round((txs.length > 0 ? completed / txs.length : 0) * 100);
+      score += Math.min(60, (completed / 20) * 60);
+      score += Math.min(30, (bal.balance / 100) * 30);
+      setPassportScore(Math.min(850, Math.round(score)));
     } catch {
       setLoadError(true);
     } finally {
@@ -525,7 +541,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.passportPromoRight}>
-            <Text style={styles.passportPromoScore}>742</Text>
+            <Text style={styles.passportPromoScore}>{passportScore ?? "--"}</Text>
             <Text style={styles.passportPromoScoreLabel}>Credit Score</Text>
             <Ionicons name="chevron-forward-circle" size={20} color="rgba(201,168,76,0.8)" style={{ marginTop: 6 }} />
           </View>

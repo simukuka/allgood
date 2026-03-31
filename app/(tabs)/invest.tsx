@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Goodi } from "@/components/Goodi";
@@ -8,10 +9,12 @@ import { MiniSparkline } from "@/components/MiniSparkline";
 import { ScreenLayout } from "@/components/ScreenLayout";
 import { useTranslation } from "@/constants/i18n";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useEntranceAnimation } from "@/hooks/useEntranceAnimation";
 import { useStaggerAnimation } from "@/hooks/useStaggerAnimation";
 import { useTextScale } from "@/hooks/useTextScale";
 import { useThemeColors } from "@/hooks/useThemeColors";
+import { getPrimaryBalance, getRecentTransactions } from "@/lib/data";
 import { hapticLight } from "@/lib/haptics";
 
 /* ── Quick stat cards ────────────────────────────────────── */
@@ -40,7 +43,33 @@ export default function InvestScreen() {
   const colors = useThemeColors();
   const fs = useTextScale();
   const { preferences } = useApp();
+  const { user } = useAuth();
   const t = useTranslation(preferences.language);
+  const [passportScore, setPassportScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const [bal, txs] = await Promise.all([
+        getPrimaryBalance(user.id),
+        getRecentTransactions(user.id, 100),
+      ]);
+      const completed = txs.filter((tx) => tx.status === "completed").length;
+      const now = new Date();
+      const created = user.created_at ? new Date(user.created_at) : now;
+      const accountAgeMonths = Math.max(
+        0,
+        (now.getFullYear() - created.getFullYear()) * 12 +
+          (now.getMonth() - created.getMonth()),
+      );
+      let score = 580;
+      score += Math.min(80, (accountAgeMonths / 24) * 80);
+      score += Math.round((txs.length > 0 ? completed / txs.length : 0) * 100);
+      score += Math.min(60, (completed / 20) * 60);
+      score += Math.min(30, (bal.balance / 100) * 30);
+      setPassportScore(Math.min(850, Math.round(score)));
+    })();
+  }, [user?.id, user?.created_at]);
 
   // Entrance animation
   const { anims: cardAnims, start: startCardAnims } = useStaggerAnimation({
@@ -290,7 +319,7 @@ export default function InvestScreen() {
               </View>
             </View>
             <Text style={[styles.heroAmount, { fontSize: 42, color: "#C9A84C", letterSpacing: -2 }]}>
-              742
+              {passportScore ?? "--"}
             </Text>
             <Text style={[styles.heroFooterText, { marginBottom: 10 }]}>
               Credit score · Recognized in 6 countries →

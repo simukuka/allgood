@@ -84,8 +84,8 @@ export default function CreateAccountScreen() {
           <Text style={styles.stepPillTxt}>Step 1 of 3</Text>
         </View>
 
-        <Text style={styles.headerTitle}>How would you{"\n"}like to sign up?</Text>
-        <Text style={styles.headerSub}>Choose the method that works for you.</Text>
+        <Text style={styles.headerTitle}>Choose your secure{"\n"}signup path</Text>
+        <Text style={styles.headerSub}>No fake demo accounts. We only set up real sign-in methods.</Text>
       </LinearGradient>
 
       {/* ── Scrollable Content ────────────────────────── */}
@@ -171,7 +171,7 @@ export default function CreateAccountScreen() {
         {/* Trust note */}
         <View style={styles.trustNote}>
           <Ionicons name="shield-checkmark-outline" size={14} color={G0} />
-          <Text style={styles.trustNoteTxt}>{t("protectedInfo")}</Text>
+          <Text style={styles.trustNoteTxt}>Your information is encrypted in transit and at rest.</Text>
         </View>
       </ScrollView>
 

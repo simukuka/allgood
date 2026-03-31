@@ -681,12 +681,12 @@ export default function SettingsScreen() {
         <SettingsRow
           iconName="shield-checkmark-outline"
           iconBg={ICON_BG.twoFactor}
-          label="Two-factor auth"
-          valueText="Coming soon"
+          label="Security checklist"
+          valueText="Review"
           borderColor={colors.border}
           isLast
           onPress={() =>
-            showNotice("Two-factor auth is coming in the next release.")
+            showNotice("Use biometric lock and password reset to keep your account secure.")
           }
         />
       </SectionCard>
@@ -786,6 +786,17 @@ export default function SettingsScreen() {
           onPress={() => {
             hapticLight();
             router.push("/financial-passport");
+          }}
+        />
+        <SettingsRow
+          iconName="shield-checkmark-outline"
+          iconBg={ICON_BG.biometric}
+          label="Trusted contacts"
+          valueText="Manage"
+          borderColor={colors.border}
+          onPress={() => {
+            hapticLight();
+            router.push("/trusted-contacts" as never);
           }}
         />
         <SettingsRow

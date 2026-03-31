@@ -21,19 +21,13 @@ import { useEntranceAnimation } from "@/hooks/useEntranceAnimation";
 import { useStaggerAnimation } from "@/hooks/useStaggerAnimation";
 import { useTextScale } from "@/hooks/useTextScale";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import { getRecentContacts } from "@/lib/data";
+import { getRecentContacts, getTrustedContacts } from "@/lib/data";
 import type { Contact } from "@/lib/database.types";
 import { hapticLight } from "@/lib/haptics";
 import { isWalletAddress } from "@/lib/rafiki";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\+?[\d\s\-()]{7,15}$/;
-
-const FALLBACK_CONTACTS = [
-  { flag: "🇲🇽", code: "MX", name: "Maria" },
-  { flag: "🇨🇴", code: "CO", name: "Carlos" },
-  { flag: "🇧🇷", code: "BR", name: "Sofia" },
-];
 
 const STEP_LABELS = ["Recipient", "Amount", "Confirm"];
 
@@ -47,6 +41,7 @@ export default function SendScreen() {
   const [value, setValue] = useState("");
   const [touched, setTouched] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [trustedContacts, setTrustedContacts] = useState<Contact[]>([]);
 
   // Animations
   const { anims: contactAnims, start: startContactAnims } = useStaggerAnimation(
@@ -67,8 +62,12 @@ export default function SendScreen() {
 
   const loadContacts = useCallback(async () => {
     if (!user) return;
-    const data = await getRecentContacts(user.id, 5);
-    setContacts(data);
+    const [recent, trusted] = await Promise.all([
+      getRecentContacts(user.id, 5),
+      getTrustedContacts(user.id),
+    ]);
+    setContacts(recent);
+    setTrustedContacts(trusted.slice(0, 4));
   }, [user]);
 
   useEffect(() => {
@@ -84,18 +83,13 @@ export default function SendScreen() {
 
   const showError = touched && value.trim().length > 0 && !isValid;
 
-  const displayContacts =
-    contacts.length > 0
-      ? contacts.map((c) => ({
-          flag: c.flag_emoji || "👤",
-          code: c.country_code || "",
-          name: c.contact_name,
-          email: c.contact_email,
-        }))
-      : FALLBACK_CONTACTS.map((c) => ({
-          ...c,
-          email: c.name.toLowerCase() + "@email.com",
-        }));
+  const displayContacts = contacts.map((c) => ({
+    flag: c.flag_emoji || "👤",
+    code: c.country_code || "",
+    name: c.contact_name,
+    email: c.contact_email,
+    phone: c.contact_phone,
+  }));
 
   return (
     <ScreenLayout
@@ -331,8 +325,32 @@ export default function SendScreen() {
             >
               <Ionicons name="arrow-down-outline" size={18} color={colors.primary} />
             </View>
-            <Text style={[styles.quickActionTitle, { color: colors.text }]}>Receive</Text>
-            <Text style={[styles.quickActionSub, { color: colors.textSecondary }]}>Top up or collect funds</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.quickActionTitle, { color: colors.text }]}>Receive</Text>
+              <Text style={[styles.quickActionSub, { color: colors.textSecondary }]}>Top up or collect funds</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.quickActionCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+            onPress={() => router.push("/trusted-contacts" as never)}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: colors.primary + "18" },
+              ]}
+            >
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.quickActionTitle, { color: colors.text }]}>Trusted</Text>
+              <Text style={[styles.quickActionSub, { color: colors.textSecondary }]}>Manage safe recipients</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -351,15 +369,50 @@ export default function SendScreen() {
             >
               <Ionicons name="git-compare-outline" size={18} color={colors.primary} />
             </View>
-            <Text style={[styles.quickActionTitle, { color: colors.text }]}>Request</Text>
-            <Text style={[styles.quickActionSub, { color: colors.textSecondary }]}>Ask contacts to pay you</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.quickActionTitle, { color: colors.text }]}>Request</Text>
+              <Text style={[styles.quickActionSub, { color: colors.textSecondary }]}>Ask contacts to pay you</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
+        {trustedContacts.length > 0 && (
+          <>
+            <Text style={[styles.recentTitle, { color: colors.text, marginTop: 8 }]}>Trusted contacts</Text>
+            <View style={styles.recentRow}>
+              {trustedContacts.map((contact) => (
+                <TouchableOpacity
+                  key={contact.id}
+                  style={styles.recentItem}
+                  onPress={() => {
+                    hapticLight();
+                    setValue(contact.contact_email || contact.contact_phone || "");
+                    setMethod(contact.contact_email ? "email" : "phone");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.recentAvatar,
+                      { backgroundColor: colors.success + "16" },
+                    ]}
+                  >
+                    <Ionicons name="shield-checkmark" size={14} color={colors.success} />
+                  </View>
+                  <Text style={[styles.recentName, { color: colors.text }]} numberOfLines={1}>
+                    {contact.contact_name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
         {/* ── Recent Contacts ────────────────────────── */}
-        <Text style={[styles.recentTitle, { color: colors.text }]}>
+        <Text style={[styles.recentTitle, { color: colors.text }]}> 
           {t("recentContacts")}
         </Text>
+        {displayContacts.length > 0 ? (
         <View style={styles.recentRow}>
           {displayContacts.map((c, i) => (
             <Animated.View
@@ -390,7 +443,10 @@ export default function SendScreen() {
                 style={styles.recentItem}
                 onPress={() => {
                   hapticLight();
-                  setValue(c.email || c.name.toLowerCase() + "@email.com");
+                    const contactValue = c.email || c.phone || "";
+                    if (!contactValue) return;
+                    setValue(contactValue);
+                    setMethod(c.email ? "email" : "phone");
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="button"
@@ -411,6 +467,17 @@ export default function SendScreen() {
             </Animated.View>
           ))}
         </View>
+        ) : (
+          <View
+            style={[
+              styles.emptyContactsCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.emptyContactsTitle, { color: colors.text }]}>No recent contacts yet</Text>
+            <Text style={[styles.emptyContactsDesc, { color: colors.textSecondary }]}>Your real recipients will appear here after your first transfer.</Text>
+          </View>
+        )}
 
         <View style={styles.footer}>
           <Button
@@ -518,16 +585,17 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: 13, marginTop: -16, marginBottom: 12 },
   quickActionsRow: {
-    flexDirection: "row",
-    gap: 12,
+    gap: 10,
     marginBottom: 24,
   },
   quickActionCard: {
-    flex: 1,
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 16,
     padding: 14,
-    minHeight: 102,
+    minHeight: 72,
   },
   quickActionIcon: {
     width: 32,
@@ -535,12 +603,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 0,
+    marginRight: 12,
   },
   quickActionTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   quickActionSub: {
     fontSize: 12,
@@ -549,6 +618,21 @@ const styles = StyleSheet.create({
   /* Contacts */
   recentTitle: { fontSize: 16, fontWeight: "700", marginBottom: 14 },
   recentRow: { flexDirection: "row", gap: 20, marginBottom: 32 },
+  emptyContactsCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 32,
+  },
+  emptyContactsTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  emptyContactsDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
   recentItem: { alignItems: "center" },
   recentAvatar: {
     width: 56,

@@ -34,23 +34,34 @@ import { useAuth } from '@/contexts/AuthContext';
 const { width: SW } = Dimensions.get('window');
 
 // ── Palette ──────────────────────────────────────────────────
-const HERO1   = '#7F77DD';
-const HERO2   = '#D4537E';
-const HERO3   = '#D85A30';
-const BG      = '#0A0A1A';
-const SURFACE = '#13132A';
-const SURF2   = '#1C1C35';
-const WHITE   = '#F0F0FF';
-const MUTED   = 'rgba(240,240,255,0.5)';
+const HERO1   = '#00A6FB';
+const HERO2   = '#06D6A0';
+const HERO3   = '#FF7A18';
+const BG      = '#071017';
+const SURFACE = '#0E1B27';
+const SURF2   = '#122433';
+const WHITE   = '#EAF7FF';
+const MUTED   = 'rgba(226,244,255,0.62)';
 const BORDER  = 'rgba(255,255,255,0.08)';
 const BORDER2 = 'rgba(255,255,255,0.15)';
 const TEAL    = '#2EFFD5';
-const PURPLE  = '#A78BFA';
-const PINK    = '#F472B6';
+const PURPLE  = '#5FA8FF';
+const PINK    = '#FF5D8F';
 const GREEN   = '#4ADE80';
 const CORAL   = '#FB923C';
 const RED     = '#FF6B6B';
 const GOLD    = '#FCD34D';
+
+const HERO_CHIPS = [
+  { icon: 'flash-outline' as const, txt: 'Fast setup' },
+  { icon: 'shield-checkmark-outline' as const, txt: 'Bank-grade security' },
+  { icon: 'wallet-outline' as const, txt: 'No hidden fees' },
+];
+const HERO_TICKERS = [
+  { icon: 'time-outline' as const, txt: 'Avg transfer: 2 min' },
+  { icon: 'cash-outline' as const, txt: 'From $3.99 flat' },
+  { icon: 'sparkles-outline' as const, txt: 'Instant account setup' },
+];
 
 // ── Feature card data ─────────────────────────────────────────
 const FEATURES = [
@@ -218,9 +229,15 @@ export default function LandingScreen() {
   const h1aAnim   = useEntrance(180,  40);
   const h1bAnim   = useEntrance(280,  40);
   const subAnim   = useEntrance(360,  20);
-  const btnsAnim  = useEntrance(440,  20);
-  const rateAnim  = useEntrance(520,  14);
-  const cardAnim  = useEntrance(580,  48);
+  const chip0Anim = useEntrance(380,  14);
+  const chip1Anim = useEntrance(440,  14);
+  const chip2Anim = useEntrance(500,  14);
+  const btnsAnim  = useEntrance(420,  20);
+  const rateAnim  = useEntrance(500,  14);
+  const tick0Anim = useEntrance(540,  12);
+  const tick1Anim = useEntrance(590,  12);
+  const tick2Anim = useEntrance(640,  12);
+  const cardAnim  = useEntrance(520,  48);
 
   // Blob animations
   const blob1S = useSharedValue(1);
@@ -228,6 +245,11 @@ export default function LandingScreen() {
   const blob1X = useSharedValue(0);
   const blob2Y = useSharedValue(0);
   const cardFloat = useSharedValue(0);
+  const blob1DriftY = useSharedValue(0);
+  const blob2DriftX = useSharedValue(0);
+  const cardDriftX = useSharedValue(0);
+  const heroRipple = useSharedValue(0);
+  const ctaRipple = useSharedValue(0);
   const ctaPulse  = useSharedValue(1);
   const shimX     = useSharedValue(-SW);
 
@@ -239,28 +261,41 @@ export default function LandingScreen() {
 
   useEffect(() => {
     blob1S.value = withRepeat(withSequence(
-      withTiming(1.25, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(1.0,  { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.26, { duration: 3400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.0,  { duration: 3400, easing: Easing.inOut(Easing.sin) }),
     ), -1, false);
     blob2S.value = withRepeat(withSequence(
-      withTiming(1.18, { duration: 5800, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0.88, { duration: 5800, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.2, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.9, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
     ), -1, false);
     blob1X.value = withRepeat(withSequence(
-      withTiming(24, { duration: 6000, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-24, { duration: 6000, easing: Easing.inOut(Easing.sin) }),
+      withTiming(26, { duration: 4600, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-26, { duration: 4600, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     blob2Y.value = withRepeat(withSequence(
-      withTiming(-20, { duration: 5200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(20,  { duration: 5200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-22, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(22,  { duration: 4200, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
+    blob1DriftY.value = withRepeat(withSequence(
+      withTiming(-12, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(10,  { duration: 4400, easing: Easing.inOut(Easing.sin) }),
+    ), -1, true);
+    blob2DriftX.value = withRepeat(withSequence(
+      withTiming(14,  { duration: 5000, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-14, { duration: 5000, easing: Easing.inOut(Easing.sin) }),
+    ), -1, true);
+    cardDriftX.value = withRepeat(withSequence(
+      withTiming(8,   { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-8,  { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0,   { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+    ), -1, false);
     cardFloat.value = withDelay(700, withRepeat(withSequence(
-      withTiming(-9, { duration: 2600, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0,  { duration: 2600, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-10, { duration: 1900, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0,   { duration: 1900, easing: Easing.inOut(Easing.sin) }),
     ), -1, true));
     ctaPulse.value = withDelay(1200, withRepeat(withSequence(
-      withTiming(1.03, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
-      withTiming(1.0,  { duration: 1400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.04, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.0,  { duration: 1100, easing: Easing.inOut(Easing.sin) }),
     ), -1, false));
     shimX.value = withDelay(1000, withRepeat(withSequence(
       withTiming(SW + 120, { duration: 700, easing: Easing.out(Easing.quad) }),
@@ -269,17 +304,36 @@ export default function LandingScreen() {
     ), -1, false));
   }, []);
 
-  const blob1Style    = useAnimatedStyle(() => ({ transform: [{ scale: blob1S.value }, { translateX: blob1X.value }] }));
-  const blob2Style    = useAnimatedStyle(() => ({ transform: [{ scale: blob2S.value }, { translateY: blob2Y.value }] }));
-  const cardFloatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: cardFloat.value }] }));
+  const chipAnims = [chip0Anim, chip1Anim, chip2Anim];
+  const tickerAnims = [tick0Anim, tick1Anim, tick2Anim];
+
+  const blob1Style    = useAnimatedStyle(() => ({ transform: [{ scale: blob1S.value }, { translateX: blob1X.value }, { translateY: blob1DriftY.value }] }));
+  const blob2Style    = useAnimatedStyle(() => ({ transform: [{ scale: blob2S.value }, { translateY: blob2Y.value }, { translateX: blob2DriftX.value }] }));
+  const cardFloatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: cardFloat.value }, { translateX: cardDriftX.value }] }));
   const ctaPulseStyle  = useAnimatedStyle(() => ({ transform: [{ scale: ctaPulse.value }] }));
   const shimStyle      = useAnimatedStyle(() => ({ transform: [{ translateX: shimX.value }] }));
+  const heroRippleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(heroRipple.value, [0, 1], [0, 0.28]),
+    transform: [{ scale: interpolate(heroRipple.value, [0, 1], [0.2, 1.9]) }],
+  }));
+  const ctaRippleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(ctaRipple.value, [0, 1], [0, 0.26]),
+    transform: [{ scale: interpolate(ctaRipple.value, [0, 1], [0.2, 1.8]) }],
+  }));
 
   if (isLoading) return <View style={s.loader}><ActivityIndicator color={HERO1} size="large" /></View>;
   if (user)      return <Redirect href="/(tabs)" />;
 
-  const go  = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(onboarding)/signup'); };
+  const go  = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(onboarding)/create-account'); };
   const log = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);  router.push('/(onboarding)/login'); };
+  const triggerHeroRipple = () => {
+    heroRipple.value = 0;
+    heroRipple.value = withSequence(withTiming(1, { duration: 260 }), withTiming(0, { duration: 220 }));
+  };
+  const triggerCtaRipple = () => {
+    ctaRipple.value = 0;
+    ctaRipple.value = withSequence(withTiming(1, { duration: 280 }), withTiming(0, { duration: 240 }));
+  };
 
   return (
     <View style={s.root}>
@@ -319,19 +373,31 @@ export default function LandingScreen() {
             </Animated.View>
 
             {/* Headline */}
-            <Animated.Text style={[s.heroH1, h1aAnim]}>Your money,</Animated.Text>
-            <Animated.Text style={[s.heroH1, s.heroH1b, h1bAnim]}>your world.</Animated.Text>
+            <Animated.Text style={[s.heroH1, h1aAnim]}>Move money.</Animated.Text>
+            <Animated.Text style={[s.heroH1, s.heroH1b, h1bAnim]}>Build power.</Animated.Text>
 
             <Animated.Text style={[s.heroSub, subAnim]}>
-              Send home. Build credit. Learn the system.{'\n'}No SSN required.
+              Send money home fast, grow your US credit, and learn finance in your language.{"\n"}No SSN required.
             </Animated.Text>
+
+            <Animated.View style={[s.heroChipRow, subAnim]}>
+              {HERO_CHIPS.map((chip, i) => (
+                <Animated.View key={i} style={chipAnims[i]}>
+                  <View style={s.heroChip}>
+                    <Ionicons name={chip.icon} size={13} color={WHITE} />
+                    <Text style={s.heroChipTxt}>{chip.txt}</Text>
+                  </View>
+                </Animated.View>
+              ))}
+            </Animated.View>
 
             {/* Buttons */}
             <Animated.View style={[s.heroBtns, btnsAnim]}>
-              <Pressable onPress={go} style={s.btnCreate} accessibilityRole="button" accessibilityLabel="Create free account">
+              <Pressable onPressIn={triggerHeroRipple} onPress={go} style={s.btnCreate} accessibilityRole="button" accessibilityLabel="Create free account">
                 <View style={s.btnCreateInner}>
                   <Animated.View style={[s.shimmer, shimStyle]} />
-                  <Text style={s.btnCreateTxt}>Create free account</Text>
+                  <Animated.View pointerEvents="none" style={[s.btnRipple, heroRippleStyle]} />
+                  <Text style={s.btnCreateTxt}>Open your account</Text>
                   <Ionicons name="arrow-forward" size={16} color={HERO1} />
                 </View>
               </Pressable>
@@ -343,7 +409,18 @@ export default function LandingScreen() {
             {/* Stars */}
             <Animated.View style={[s.stars, rateAnim]}>
               {[1,2,3,4,5].map(i => <Ionicons key={i} name="star" size={12} color={GOLD} />)}
-              <Text style={s.starsTxt}>4.9 · 200K+ downloads</Text>
+              <Text style={s.starsTxt}>4.9 · Trusted by 200K+ people</Text>
+            </Animated.View>
+            {/* Proof ticker */}
+            <Animated.View style={[s.heroTicker, rateAnim]}>
+              {HERO_TICKERS.map((item, i) => (
+                <Animated.View key={i} style={tickerAnims[i]}>
+                  <View style={s.heroTickerPill}>
+                    <Ionicons name={item.icon} size={12} color={WHITE} />
+                    <Text style={s.heroTickerTxt}>{item.txt}</Text>
+                  </View>
+                </Animated.View>
+              ))}
             </Animated.View>
 
             {/* App card */}
@@ -423,7 +500,7 @@ export default function LandingScreen() {
             <View style={[s.eyeLine, { backgroundColor: RED }]} />
             <Text style={[s.eyeTxt, { color: RED }]}>The hard truth</Text>
           </View>
-          <Text style={s.sectionH2}>The system wasn't{'\n'}built for you.</Text>
+          <Text style={s.sectionH2}>You deserve{'\n'}a better financial start.</Text>
           <Text style={s.sectionSub}>
             Banks turn you away. Transfers bleed your paycheck. Credit scores reset at the border. AllGood was built to fix all of that.
           </Text>
@@ -452,7 +529,7 @@ export default function LandingScreen() {
             <View style={[s.eyeLine, { backgroundColor: TEAL }]} />
             <Text style={[s.eyeTxt, { color: TEAL }]}>What we offer</Text>
           </View>
-          <Text style={s.sectionH2}>Five tools.{'\n'}One app.</Text>
+          <Text style={s.sectionH2}>Everything you need.{'\n'}In one place.</Text>
           <Text style={s.sectionSub}>Tap any card to learn more.</Text>
           <View style={s.featGrid}>
             {FEATURES.map((f, i) => (
@@ -470,7 +547,7 @@ export default function LandingScreen() {
             <View style={[s.eyeLine, { backgroundColor: PURPLE }]} />
             <Text style={[s.eyeTxt, { color: PURPLE }]}>Our impact</Text>
           </View>
-          <Text style={s.sectionH2}>Numbers that{'\n'}prove it.</Text>
+          <Text style={s.sectionH2}>Built for real{'\n'}daily outcomes.</Text>
           <View style={s.statsGrid}>
             {STATS.map((st, i) => <StatTile key={i} stat={st} index={i} />)}
           </View>
@@ -484,7 +561,7 @@ export default function LandingScreen() {
             <View style={[s.eyeLine, { backgroundColor: TEAL }]} />
             <Text style={[s.eyeTxt, { color: TEAL }]}>Get started</Text>
           </View>
-          <Text style={s.sectionH2}>Up and running{'\n'}in 3 steps.</Text>
+          <Text style={s.sectionH2}>Get started{'\n'}in minutes.</Text>
           <View style={s.stepsCol}>
             {[
               { n: '01', title: 'Create your account',    body: 'ITIN, passport, or Matrícula Consular. No SSN needed. Takes under 2 minutes.', tint: TEAL   },
@@ -552,7 +629,7 @@ export default function LandingScreen() {
             <View style={[s.eyeLine, { backgroundColor: TEAL }]} />
             <Text style={[s.eyeTxt, { color: TEAL }]}>vs traditional banks</Text>
           </View>
-          <Text style={s.sectionH2}>No contest.</Text>
+          <Text style={s.sectionH2}>See the difference.</Text>
           {[
             { bad: '$25–45 wire fee',         good: '$3.99 flat — always'  },
             { bad: 'SSN required',            good: 'ITIN or passport OK'  },
@@ -593,17 +670,18 @@ export default function LandingScreen() {
               <Text style={s.ctaFlagTxt}>  200,000+ people joined</Text>
             </View>
 
-            <Text style={s.ctaH2}>Ready to take{'\n'}control?</Text>
-            <Text style={s.ctaSub}>Join thousands of immigrants building their financial future.</Text>
+            <Text style={s.ctaH2}>Your next chapter starts funded.{"\n"}Open AllGood today.</Text>
+            <Text style={s.ctaSub}>Join a movement of immigrants turning every paycheck into progress, credit, and confidence.</Text>
 
             <Animated.View style={ctaPulseStyle}>
-              <Pressable onPress={go} style={s.ctaBtn} accessibilityRole="button" accessibilityLabel="Create free account">
+              <Pressable onPressIn={triggerCtaRipple} onPress={go} style={s.ctaBtn} accessibilityRole="button" accessibilityLabel="Create free account">
+                <Animated.View pointerEvents="none" style={[s.btnRipple, ctaRippleStyle]} />
                 <Text style={s.ctaBtnTxt}>Create free account</Text>
                 <Ionicons name="arrow-forward" size={16} color={HERO1} />
               </Pressable>
             </Animated.View>
 
-            <Text style={s.ctaNote}>Free forever · No credit card · Cancel anytime</Text>
+            <Text style={s.ctaNote}>Free forever · No credit card · Real support</Text>
 
             <Pressable onPress={log} style={s.ctaGhost} accessibilityRole="button" accessibilityLabel="I already have an account">
               <Text style={s.ctaGhostTxt}>I already have an account</Text>
@@ -639,8 +717,10 @@ const s = StyleSheet.create({
   brand:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandIcon: {
     width: 28, height: 28, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.24)',
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   brandName: { fontSize: 17, fontWeight: '800', color: WHITE, letterSpacing: -0.4 },
   navSignIn: {
@@ -663,15 +743,40 @@ const s = StyleSheet.create({
 
   heroH1: { fontSize: 48, fontWeight: '900', color: WHITE, letterSpacing: -2.5, lineHeight: 54, paddingHorizontal: 24 },
   heroH1b: { marginBottom: 18, opacity: 0.92 },
-  heroSub: { fontSize: 16, color: 'rgba(255,255,255,0.82)', lineHeight: 24, paddingHorizontal: 24, marginBottom: 28 },
+  heroSub: { fontSize: 16, color: 'rgba(255,255,255,0.86)', lineHeight: 24, paddingHorizontal: 24, marginBottom: 14 },
+  heroChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 24,
+    marginBottom: 18,
+  },
+  heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  heroChipTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: WHITE,
+  },
 
   heroBtns: { paddingHorizontal: 24, gap: 12, marginBottom: 20 },
   btnCreate: {
     borderRadius: 16, backgroundColor: WHITE, overflow: 'hidden',
   },
   btnCreateInner: {
+    position: 'relative',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 17, paddingHorizontal: 24,
+    overflow: 'hidden',
   },
   shimmer: {
     position: 'absolute', top: 0, bottom: 0, width: 60,
@@ -687,6 +792,37 @@ const s = StyleSheet.create({
 
   stars: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 24, marginBottom: 28 },
   starsTxt: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginLeft: 4 },
+
+  heroTicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 24,
+    marginBottom: 18,
+  },
+  heroTickerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(7,16,23,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.26)',
+  },
+  heroTickerTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.94)',
+  },
+  btnRipple: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: HERO1,
+  },
 
   // App card in hero
   appCard: { marginHorizontal: 24 },
@@ -818,8 +954,10 @@ const s = StyleSheet.create({
   ctaH2: { fontSize: 34, fontWeight: '900', color: WHITE, letterSpacing: -1.5, lineHeight: 40, marginBottom: 10 },
   ctaSub: { fontSize: 15, color: 'rgba(255,255,255,0.78)', lineHeight: 23, marginBottom: 28 },
   ctaBtn: {
+    position: 'relative',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: WHITE, borderRadius: 16, paddingVertical: 17, marginBottom: 12,
+    overflow: 'hidden',
   },
   ctaBtnTxt:  { fontSize: 16, fontWeight: '800', color: HERO1, letterSpacing: -0.3 },
   ctaNote:    { fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginBottom: 14 },

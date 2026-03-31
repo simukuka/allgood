@@ -3,7 +3,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Redirect } from "expo-router";
 import { Tabs } from "expo-router";
 import { useEffect } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -14,6 +15,11 @@ import Animated, {
 import { useTranslation } from "@/constants/i18n";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  authenticateWithBiometrics,
+  getBiometricPreference,
+  isBiometricAvailable,
+} from "@/lib/biometrics";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useThemeColors } from "@/hooks/useThemeColors";
 
@@ -113,97 +119,206 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = useThemeColors();
   const { preferences } = useApp();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
   const t = useTranslation(preferences.language);
+  const [biometricRequired, setBiometricRequired] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      const [enabled, available] = await Promise.all([
+        getBiometricPreference(),
+        isBiometricAvailable(),
+      ]);
+      if (!mounted) return;
+      const required = enabled && available;
+      setBiometricRequired(required);
+      setUnlocked(!required);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
+  const unlockApp = useCallback(async () => {
+    setUnlockError(null);
+    const ok = await authenticateWithBiometrics("Unlock AllGood");
+    if (!ok) {
+      setUnlockError("Could not verify your biometrics. Try again.");
+      return;
+    }
+    setUnlocked(true);
+  }, []);
 
   if (!isLoading && !user) {
     return <Redirect href="/(onboarding)/login" />;
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.tabIconDefault,
-        headerShown: false,
-        tabBarStyle: {
-          position: "absolute",
-          bottom: Platform.OS === "ios" ? 24 : 16,
-          left: 20,
-          right: 20,
-          backgroundColor: colorScheme === "dark" ? "#141c2b" : "#ffffff",
-          borderRadius: 24,
-          height: 68,
-          paddingTop: 8,
-          paddingBottom: 8,
-          borderTopWidth: 0,
-          shadowColor: colors.primary,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: colorScheme === "dark" ? 0.3 : 0.18,
-          shadowRadius: 28,
-          elevation: 14,
-          borderWidth: 1,
-          borderColor:
-            colorScheme === "dark"
-              ? "rgba(255,255,255,0.06)"
-              : "rgba(0,0,0,0.04)",
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: "600",
-          letterSpacing: 0.3,
-          marginTop: 2,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 4,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("home"),
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="home" color={color} focused={focused} />
-          ),
+    <View style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.tabIconDefault,
+          headerShown: false,
+          tabBarStyle: {
+            position: "absolute",
+            bottom: Platform.OS === "ios" ? 24 : 16,
+            left: 20,
+            right: 20,
+            backgroundColor: colorScheme === "dark" ? "#141c2b" : "#ffffff",
+            borderRadius: 24,
+            height: 68,
+            paddingTop: 8,
+            paddingBottom: 8,
+            borderTopWidth: 0,
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: colorScheme === "dark" ? 0.3 : 0.18,
+            shadowRadius: 28,
+            elevation: 14,
+            borderWidth: 1,
+            borderColor:
+              colorScheme === "dark"
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(0,0,0,0.04)",
+          },
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: "600",
+            letterSpacing: 0.3,
+            marginTop: 2,
+          },
+          tabBarItemStyle: {
+            paddingVertical: 4,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="send"
-        options={{
-          title: t("send"),
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="paper-plane" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="invest"
-        options={{
-          title: t("invest"),
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="trending-up" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="vision"
-        options={{
-          title: t("vision"),
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="eye" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t("settings"),
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="settings" color={color} focused={focused} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: t("home"),
+            tabBarIcon: ({ color, focused }) => (
+              <TabBarIcon name="home" color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="send"
+          options={{
+            title: t("send"),
+            tabBarIcon: ({ color, focused }) => (
+              <TabBarIcon name="paper-plane" color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="invest"
+          options={{
+            title: t("invest"),
+            tabBarIcon: ({ color, focused }) => (
+              <TabBarIcon name="trending-up" color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="vision"
+          options={{
+            title: t("vision"),
+            tabBarIcon: ({ color, focused }) => (
+              <TabBarIcon name="eye" color={color} focused={focused} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: t("settings"),
+            tabBarIcon: ({ color, focused }) => (
+              <TabBarIcon name="settings" color={color} focused={focused} />
+            ),
+          }}
+        />
+      </Tabs>
+
+      {biometricRequired && !unlocked && (
+        <View style={[styles.lockOverlay, { backgroundColor: colors.background }]}> 
+          <View style={[styles.lockCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}> 
+            <Ionicons name="shield-checkmark" size={28} color={colors.primary} />
+            <Text style={[styles.lockTitle, { color: colors.text }]}>Unlock AllGood</Text>
+            <Text style={[styles.lockText, { color: colors.textSecondary }]}> 
+              Biometric verification is enabled. Authenticate to access your money dashboard.
+            </Text>
+            <Pressable
+              onPress={unlockApp}
+              style={({ pressed }) => [
+                styles.unlockButton,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <Text style={styles.unlockButtonText}>Use biometrics</Text>
+            </Pressable>
+            <Pressable onPress={signOut}>
+              <Text style={[styles.signOutText, { color: colors.error }]}>Sign out</Text>
+            </Pressable>
+            {unlockError ? (
+              <Text style={[styles.unlockError, { color: colors.error }]}>{unlockError}</Text>
+            ) : null}
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    zIndex: 20,
+  },
+  lockCard: {
+    width: "100%",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+    alignItems: "center",
+    gap: 10,
+  },
+  lockTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  lockText: {
+    textAlign: "center",
+    lineHeight: 20,
+    fontSize: 13,
+  },
+  unlockButton: {
+    width: "100%",
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  unlockButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  signOutText: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  unlockError: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+});
