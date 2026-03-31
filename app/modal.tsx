@@ -1,35 +1,86 @@
-import { StatusBar } from 'expo-status-bar';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+import { ScreenLayout } from "@/components/ScreenLayout";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 export default function ModalScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Modal</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/modal.tsx" />
+  const colors = useThemeColors();
 
-      {/* Use a light status bar on iOS to account for the black space above the modal */}
-      <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
-    </View>
+  return (
+    <ScreenLayout scroll={false} edges={["top"]} horizontalPadding={24}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Ionicons
+            name="information-circle-outline"
+            size={32}
+            color={colors.primary}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Transaction Details
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.label, { color: colors.textSecondary }]}>
+            Amount
+          </Text>
+          <Text style={[styles.amount, { color: colors.text }]}>$250.00</Text>
+          <View style={styles.separator} />
+          <Text style={[styles.label, { color: colors.textSecondary }]}>
+            Status
+          </Text>
+          <Text style={[styles.status, { color: colors.success }]}>
+            Completed
+          </Text>
+        </View>
+      </View>
+      <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 24,
+  },
+  header: {
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 32,
+    marginTop: 16,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "700",
+  },
+  card: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  amount: {
+    fontSize: 32,
+    fontWeight: "700",
   },
   separator: {
-    marginVertical: 30,
     height: 1,
-    width: '80%',
+    backgroundColor: "#e5e7eb",
+    marginVertical: 12,
+  },
+  status: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
