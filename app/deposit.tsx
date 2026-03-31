@@ -21,6 +21,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { addFundsToChecking } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { formatCurrency } from "@/utils/currency";
@@ -40,6 +41,9 @@ export default function DepositScreen() {
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("bank");
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [bankRef, setBankRef] = useState("");
+  const [cardLast4, setCardLast4] = useState("");
+  const [cashLocation, setCashLocation] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,22 +71,33 @@ export default function DepositScreen() {
 
   const numAmount = parseFloat(amount) || 0;
   const fee = selectedMethod === "card" ? numAmount * 0.015 : 0;
-  const total = numAmount + fee;
-  const canConfirm = numAmount >= 5 && numAmount <= 50000;
+  const fundingDetailsValid =
+    selectedMethod === "bank"
+      ? bankRef.trim().length >= 6
+      : selectedMethod === "card"
+        ? /^\d{4}$/.test(cardLast4)
+        : cashLocation.trim().length >= 3;
+
+  const canConfirm =
+    numAmount >= 5 && numAmount <= 50000 && fundingDetailsValid;
+
+  const depositNote =
+    selectedMethod === "bank"
+      ? `deposit:bank:ref=${bankRef.trim()}`
+      : selectedMethod === "card"
+        ? `deposit:card:last4=${cardLast4}`
+        : `deposit:cash:location=${cashLocation.trim()}`;
 
   const handleDeposit = async () => {
     if (!user || !canConfirm) return;
     setLoading(true);
     setError(null);
     try {
-      const newBalance = currentBalance + numAmount;
-      const { error: err } = await supabase
-        .from("accounts")
-        .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .eq("account_type", "checking");
+      const { error: addErr } = await addFundsToChecking(user.id, numAmount);
+      if (addErr) throw new Error(addErr);
 
-      if (err) throw new Error(err.message);
+      const newBalance = currentBalance + numAmount;
+      setCurrentBalance(newBalance);
 
       // Record as a receive transaction
       await supabase.from("transactions").insert({
@@ -94,7 +109,7 @@ export default function DepositScreen() {
         fee: fee,
         status: "completed",
         type: "receive",
-        note: `deposit:${selectedMethod}`,
+        note: depositNote,
         completed_at: new Date().toISOString(),
       });
 
@@ -223,6 +238,58 @@ export default function DepositScreen() {
             ))}
           </View>
 
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Funding details</Text>
+          {selectedMethod === "bank" && (
+            <View style={[styles.fundingBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}> 
+              <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Enter your transfer reference (minimum 6 chars).</Text>
+              <TextInput
+                style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                placeholder="Bank transfer reference"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="characters"
+                value={bankRef}
+                onChangeText={(v) => {
+                  setBankRef(v);
+                  setError(null);
+                }}
+              />
+            </View>
+          )}
+
+          {selectedMethod === "card" && (
+            <View style={[styles.fundingBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}> 
+              <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Use the last 4 digits of your debit card.</Text>
+              <TextInput
+                style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                placeholder="Card last 4 digits"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="number-pad"
+                maxLength={4}
+                value={cardLast4}
+                onChangeText={(v) => {
+                  setCardLast4(v.replace(/\D/g, ""));
+                  setError(null);
+                }}
+              />
+            </View>
+          )}
+
+          {selectedMethod === "cash" && (
+            <View style={[styles.fundingBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}> 
+              <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Enter where you made the cash deposit.</Text>
+              <TextInput
+                style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                placeholder="Deposit location"
+                placeholderTextColor={colors.textSecondary}
+                value={cashLocation}
+                onChangeText={(v) => {
+                  setCashLocation(v);
+                  setError(null);
+                }}
+              />
+            </View>
+          )}
+
           {/* Breakdown */}
           {numAmount >= 5 && (
             <View style={[styles.breakdown, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
@@ -311,6 +378,22 @@ const styles = StyleSheet.create({
   confirmBtn: { borderRadius: 16, paddingVertical: 18, alignItems: "center", marginBottom: 16 },
   confirmTxt: { fontSize: 16, fontWeight: "700" },
   disclaimer: { fontSize: 12, textAlign: "center", lineHeight: 18 },
+  fundingBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 20,
+    gap: 10,
+  },
+  fundingHint: { fontSize: 12, lineHeight: 18 },
+  fundingInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   // Success
   successScreen: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },
   successCircle: { width: 110, height: 110, borderRadius: 55, overflow: "hidden", marginBottom: 8 },
