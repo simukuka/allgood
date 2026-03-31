@@ -44,6 +44,7 @@ export default function TransferStatusScreen() {
     rafikiPaymentId?: string;
     recipient: string;
     amount: string;
+    currency?: string;
     converted: string;
     convertedCurrency: string;
     status: string;
@@ -199,7 +200,10 @@ export default function TransferStatusScreen() {
 
       <View style={styles.amountSection}>
         <Text style={[styles.bigAmount, { color: colors.text }]}> 
-          {formatCurrency(parseFloat(params.amount || "0"), "USD")}
+          {formatCurrency(
+            parseFloat(params.amount || "0"),
+            (params.currency as any) || "USD",
+          )}
         </Text>
         <Text style={[styles.recipientLabel, { color: colors.textSecondary }]}> 
           → {params.recipient}

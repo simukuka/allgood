@@ -92,6 +92,97 @@ export type Database = {
           },
         ];
       };
+      bank_accounts: {
+        Row: {
+          id: string;
+          user_id: string;
+          bank_name: string;
+          account_holder: string;
+          account_last4: string;
+          routing_last4: string | null;
+          currency: string;
+          available_balance: number;
+          is_verified: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          bank_name: string;
+          account_holder: string;
+          account_last4: string;
+          routing_last4?: string | null;
+          currency?: string;
+          available_balance?: number;
+          is_verified?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          bank_name?: string;
+          account_holder?: string;
+          account_last4?: string;
+          routing_last4?: string | null;
+          currency?: string;
+          available_balance?: number;
+          is_verified?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bank_transfers: {
+        Row: {
+          id: string;
+          user_id: string;
+          bank_account_id: string;
+          amount: number;
+          currency: string;
+          direction: "inbound" | "outbound";
+          status: "pending" | "completed" | "failed";
+          note: string | null;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          bank_account_id: string;
+          amount: number;
+          currency?: string;
+          direction: "inbound" | "outbound";
+          status?: "pending" | "completed" | "failed";
+          note?: string | null;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          status?: "pending" | "completed" | "failed";
+          note?: string | null;
+          completed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bank_transfers_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bank_transfers_bank_account_id_fkey";
+            columns: ["bank_account_id"];
+            referencedRelation: "bank_accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       transactions: {
         Row: {
           id: string;
@@ -239,6 +330,8 @@ export type Database = {
 // Convenience aliases
 export type Profile             = Database["public"]["Tables"]["profiles"]["Row"];
 export type Account             = Database["public"]["Tables"]["accounts"]["Row"];
+export type BankAccount         = Database["public"]["Tables"]["bank_accounts"]["Row"];
+export type BankTransfer        = Database["public"]["Tables"]["bank_transfers"]["Row"];
 export type Transaction         = Database["public"]["Tables"]["transactions"]["Row"];
 export type Contact             = Database["public"]["Tables"]["contacts"]["Row"];
 export type ScheduledTransfer   = Database["public"]["Tables"]["scheduled_transfers"]["Row"];

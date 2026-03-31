@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { getContacts } from "@/lib/data";
 import { hapticSuccess } from "@/lib/haptics";
+import type { CurrencyCode } from "@/utils/currency";
 
 const FALLBACK_CONTACTS = [
   {
@@ -44,8 +45,9 @@ const FALLBACK_CONTACTS = [
 export default function RequestMoneyScreen() {
   const colors = useThemeColors();
   const { preferences } = useApp();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const t = useTranslation(preferences.language);
+  const userCurrency = (profile?.currency as CurrencyCode) || "USD";
 
   const [contacts, setContacts] = useState<
     Array<{
@@ -204,7 +206,7 @@ export default function RequestMoneyScreen() {
           onChangeText={setAmount}
         />
         <Text style={[styles.inputSuffix, { color: colors.textSecondary }]}>
-          USD
+          {userCurrency}
         </Text>
       </View>
 

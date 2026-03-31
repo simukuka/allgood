@@ -1,5 +1,6 @@
 import type {
     Account,
+  BankAccount,
     Contact,
     ScheduledTransfer,
     Transaction,
@@ -147,6 +148,111 @@ export async function addFundsToChecking(
     .eq("account_type", "checking");
 
   return { error: updateErr?.message ?? null };
+}
+
+export async function getBankAccounts(userId: string): Promise<BankAccount[]> {
+  const { data, error } = await supabase
+    .from("bank_accounts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("getBankAccounts error:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as BankAccount[];
+}
+
+export async function linkBankAccount(input: {
+  userId: string;
+  bankName: string;
+  accountHolder: string;
+  accountLast4: string;
+  routingLast4?: string;
+  currency?: string;
+  availableBalance?: number;
+}): Promise<{ data: BankAccount | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from("bank_accounts")
+    .insert({
+      user_id: input.userId,
+      bank_name: input.bankName,
+      account_holder: input.accountHolder,
+      account_last4: input.accountLast4,
+      routing_last4: input.routingLast4 || null,
+      currency: input.currency || "USD",
+      available_balance: input.availableBalance ?? 0,
+      is_verified: true,
+    })
+    .select("*")
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as BankAccount, error: null };
+}
+
+export async function fundWalletFromBankAccount(input: {
+  userId: string;
+  bankAccountId: string;
+  amount: number;
+  note?: string;
+}): Promise<{ error: string | null }> {
+  const { data: bankAccount, error: bankErr } = await supabase
+    .from("bank_accounts")
+    .select("*")
+    .eq("id", input.bankAccountId)
+    .eq("user_id", input.userId)
+    .single();
+
+  if (bankErr || !bankAccount) {
+    return { error: bankErr?.message || "Bank account not found." };
+  }
+
+  if (bankAccount.available_balance < input.amount) {
+    return { error: "Insufficient linked bank balance." };
+  }
+
+  const { error: debitBankErr } = await supabase
+    .from("bank_accounts")
+    .update({
+      available_balance: bankAccount.available_balance - input.amount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.bankAccountId)
+    .eq("user_id", input.userId);
+
+  if (debitBankErr) return { error: debitBankErr.message };
+
+  const { error: addErr } = await addFundsToChecking(input.userId, input.amount);
+  if (addErr) return { error: addErr };
+
+  await supabase.from("bank_transfers").insert({
+    user_id: input.userId,
+    bank_account_id: input.bankAccountId,
+    amount: input.amount,
+    currency: bankAccount.currency || "USD",
+    direction: "inbound",
+    status: "completed",
+    note: input.note || `deposit:bank:last4=${bankAccount.account_last4}`,
+    completed_at: new Date().toISOString(),
+  });
+
+  await supabase.from("transactions").insert({
+    sender_id: input.userId,
+    recipient_id: input.userId,
+    recipient_name: "Bank Deposit",
+    amount: input.amount,
+    currency: bankAccount.currency || "USD",
+    fee: 0,
+    status: "completed",
+    type: "receive",
+    note: input.note || `deposit:bank:last4=${bankAccount.account_last4}`,
+    completed_at: new Date().toISOString(),
+  });
+
+  return { error: null };
 }
 
 export async function appendTransactionNote(

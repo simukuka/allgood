@@ -21,7 +21,13 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { addFundsToChecking } from "@/lib/data";
+import {
+  addFundsToChecking,
+  fundWalletFromBankAccount,
+  getBankAccounts,
+  linkBankAccount,
+} from "@/lib/data";
+import type { BankAccount } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { formatCurrency } from "@/utils/currency";
@@ -41,6 +47,16 @@ export default function DepositScreen() {
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("bank");
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string | null>(null);
+  const [bankAccountsLoading, setBankAccountsLoading] = useState(false);
+
+  const [newBankName, setNewBankName] = useState("");
+  const [newAccountHolder, setNewAccountHolder] = useState("");
+  const [newAccountLast4, setNewAccountLast4] = useState("");
+  const [newRoutingLast4, setNewRoutingLast4] = useState("");
+  const [newBankStartingBalance, setNewBankStartingBalance] = useState("500");
+
   const [bankRef, setBankRef] = useState("");
   const [cardLast4, setCardLast4] = useState("");
   const [cashLocation, setCashLocation] = useState("");
@@ -67,13 +83,63 @@ export default function DepositScreen() {
       .then(({ data }) => {
         if (data) setCurrentBalance(data.balance);
       });
+
+    setBankAccountsLoading(true);
+    getBankAccounts(user.id)
+      .then((rows) => {
+        setBankAccounts(rows);
+        if (rows.length > 0) {
+          setSelectedBankAccountId((prev) => prev || rows[0].id);
+        }
+      })
+      .finally(() => setBankAccountsLoading(false));
   }, [user]);
+
+  const handleLinkBank = async () => {
+    if (!user) return;
+    if (newBankName.trim().length < 2) {
+      setError("Enter a valid bank name.");
+      return;
+    }
+    if (newAccountHolder.trim().length < 3) {
+      setError("Enter the account holder name.");
+      return;
+    }
+    if (!/^\d{4}$/.test(newAccountLast4)) {
+      setError("Account last 4 must be exactly 4 digits.");
+      return;
+    }
+
+    const parsedStartingBalance = parseFloat(newBankStartingBalance) || 0;
+    const { data, error: linkErr } = await linkBankAccount({
+      userId: user.id,
+      bankName: newBankName.trim(),
+      accountHolder: newAccountHolder.trim(),
+      accountLast4: newAccountLast4,
+      routingLast4: /^\d{4}$/.test(newRoutingLast4) ? newRoutingLast4 : undefined,
+      availableBalance: parsedStartingBalance,
+      currency: "USD",
+    });
+
+    if (linkErr || !data) {
+      setError(linkErr || "Unable to link bank account.");
+      return;
+    }
+
+    setBankAccounts((prev) => [data, ...prev]);
+    setSelectedBankAccountId(data.id);
+    setError(null);
+    setBankRef(`ACH-${data.account_last4}`);
+  };
 
   const numAmount = parseFloat(amount) || 0;
   const fee = selectedMethod === "card" ? numAmount * 0.015 : 0;
+  const selectedBankAccount = bankAccounts.find(
+    (acc) => acc.id === selectedBankAccountId,
+  );
   const fundingDetailsValid =
     selectedMethod === "bank"
-      ? bankRef.trim().length >= 6
+      ? !!selectedBankAccountId && bankRef.trim().length >= 6
       : selectedMethod === "card"
         ? /^\d{4}$/.test(cardLast4)
         : cashLocation.trim().length >= 3;
@@ -83,7 +149,7 @@ export default function DepositScreen() {
 
   const depositNote =
     selectedMethod === "bank"
-      ? `deposit:bank:ref=${bankRef.trim()}`
+      ? `deposit:bank:ref=${bankRef.trim()}:last4=${selectedBankAccount?.account_last4 || "n/a"}`
       : selectedMethod === "card"
         ? `deposit:card:last4=${cardLast4}`
         : `deposit:cash:location=${cashLocation.trim()}`;
@@ -93,25 +159,48 @@ export default function DepositScreen() {
     setLoading(true);
     setError(null);
     try {
-      const { error: addErr } = await addFundsToChecking(user.id, numAmount);
-      if (addErr) throw new Error(addErr);
+      if (selectedMethod === "bank") {
+        if (!selectedBankAccountId) {
+          throw new Error("Link and select a bank account first.");
+        }
+
+        const { error: bankFundErr } = await fundWalletFromBankAccount({
+          userId: user.id,
+          bankAccountId: selectedBankAccountId,
+          amount: numAmount,
+          note: depositNote,
+        });
+
+        if (bankFundErr) throw new Error(bankFundErr);
+
+        setBankAccounts((prev) =>
+          prev.map((acc) =>
+            acc.id === selectedBankAccountId
+              ? { ...acc, available_balance: acc.available_balance - numAmount }
+              : acc,
+          ),
+        );
+      } else {
+        const { error: addErr } = await addFundsToChecking(user.id, numAmount);
+        if (addErr) throw new Error(addErr);
+
+        // Record as a receive transaction for non-bank top-ups
+        await supabase.from("transactions").insert({
+          sender_id: user.id,
+          recipient_id: user.id,
+          recipient_name: "Deposit",
+          amount: numAmount,
+          currency: "USD",
+          fee: fee,
+          status: "completed",
+          type: "receive",
+          note: depositNote,
+          completed_at: new Date().toISOString(),
+        });
+      }
 
       const newBalance = currentBalance + numAmount;
       setCurrentBalance(newBalance);
-
-      // Record as a receive transaction
-      await supabase.from("transactions").insert({
-        sender_id: user.id,
-        recipient_id: user.id,
-        recipient_name: "Deposit",
-        amount: numAmount,
-        currency: "USD",
-        fee: fee,
-        status: "completed",
-        type: "receive",
-        note: depositNote,
-        completed_at: new Date().toISOString(),
-      });
 
       setDone(true);
       successScale.value = withSpring(1, { damping: 12, stiffness: 100 });
@@ -241,7 +330,89 @@ export default function DepositScreen() {
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Funding details</Text>
           {selectedMethod === "bank" && (
             <View style={[styles.fundingBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}> 
-              <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Enter your transfer reference (minimum 6 chars).</Text>
+              <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Link a bank account once, then transfer from it into your wallet.</Text>
+
+              {bankAccountsLoading ? (
+                <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Loading linked accounts...</Text>
+              ) : bankAccounts.length === 0 ? (
+                <>
+                  <TextInput
+                    style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                    placeholder="Bank name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={newBankName}
+                    onChangeText={setNewBankName}
+                  />
+                  <TextInput
+                    style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                    placeholder="Account holder name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={newAccountHolder}
+                    onChangeText={setNewAccountHolder}
+                  />
+                  <TextInput
+                    style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                    placeholder="Account last 4"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    value={newAccountLast4}
+                    onChangeText={(v) => setNewAccountLast4(v.replace(/\D/g, ""))}
+                  />
+                  <TextInput
+                    style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                    placeholder="Routing last 4 (optional)"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    value={newRoutingLast4}
+                    onChangeText={(v) => setNewRoutingLast4(v.replace(/\D/g, ""))}
+                  />
+                  <TextInput
+                    style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
+                    placeholder="Available bank balance"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="decimal-pad"
+                    value={newBankStartingBalance}
+                    onChangeText={setNewBankStartingBalance}
+                  />
+                  <Pressable
+                    style={[styles.linkBtn, { backgroundColor: colors.primary }]}
+                    onPress={handleLinkBank}
+                  >
+                    <Text style={styles.linkBtnText}>Link bank account</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  {bankAccounts.map((account) => (
+                    <Pressable
+                      key={account.id}
+                      style={[
+                        styles.bankRow,
+                        {
+                          borderColor:
+                            selectedBankAccountId === account.id
+                              ? colors.primary
+                              : colors.border,
+                          backgroundColor: colors.background,
+                        },
+                      ]}
+                      onPress={() => setSelectedBankAccountId(account.id)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.bankName, { color: colors.text }]}>{account.bank_name} •••• {account.account_last4}</Text>
+                        <Text style={[styles.bankMeta, { color: colors.textSecondary }]}>Available: {formatCurrency(account.available_balance, "USD")}</Text>
+                      </View>
+                      {selectedBankAccountId === account.id && (
+                        <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                      )}
+                    </Pressable>
+                  ))}
+                </>
+              )}
+
+              <Text style={[styles.fundingHint, { color: colors.textSecondary }]}>Enter transfer reference (minimum 6 chars).</Text>
               <TextInput
                 style={[styles.fundingInput, { color: colors.text, borderColor: colors.border }]}
                 placeholder="Bank transfer reference"
@@ -393,6 +564,32 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     fontWeight: "600",
+  },
+  linkBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  linkBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  bankRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  bankName: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  bankMeta: {
+    fontSize: 12,
   },
   // Success
   successScreen: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },

@@ -57,7 +57,62 @@ create policy "Users can insert own accounts"
   with check (auth.uid() = user_id);
 
 
--- 3. Transactions table
+-- 3. Bank Accounts table
+create table if not exists public.bank_accounts (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  bank_name text not null,
+  account_holder text not null,
+  account_last4 text not null,
+  routing_last4 text,
+  currency text not null default 'USD',
+  available_balance numeric(12, 2) not null default 0,
+  is_verified boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.bank_accounts enable row level security;
+
+create policy "Users can view own bank accounts"
+  on public.bank_accounts for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own bank accounts"
+  on public.bank_accounts for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own bank accounts"
+  on public.bank_accounts for update
+  using (auth.uid() = user_id);
+
+
+-- 4. Bank Transfers table
+create table if not exists public.bank_transfers (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  bank_account_id uuid references public.bank_accounts(id) on delete cascade not null,
+  amount numeric(12, 2) not null,
+  currency text not null default 'USD',
+  direction text not null check (direction in ('inbound', 'outbound')),
+  status text not null default 'completed' check (status in ('pending', 'completed', 'failed')),
+  note text,
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
+alter table public.bank_transfers enable row level security;
+
+create policy "Users can view own bank transfers"
+  on public.bank_transfers for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own bank transfers"
+  on public.bank_transfers for insert
+  with check (auth.uid() = user_id);
+
+
+-- 5. Transactions table
 create table if not exists public.transactions (
   id uuid default gen_random_uuid() primary key,
   sender_id uuid references public.profiles(id) on delete set null not null,
@@ -93,7 +148,7 @@ create policy "Users can update own transactions"
   using (auth.uid() = sender_id or auth.uid() = recipient_id);
 
 
--- 4. Contacts table
+-- 6. Contacts table
 create table if not exists public.contacts (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -127,7 +182,7 @@ create policy "Users can delete own contacts"
   using (auth.uid() = user_id);
 
 
--- 5. Scheduled Transfers table
+-- 7. Scheduled Transfers table
 create table if not exists public.scheduled_transfers (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,

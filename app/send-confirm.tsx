@@ -139,6 +139,8 @@ export default function SendConfirmScreen() {
     amount: string;
     converted: string;
     rate: string;
+    currency?: string;
+    convertedCurrency?: string;
   }>();
   const { sendPayment } = useRafikiPayment();
 
@@ -212,9 +214,9 @@ export default function SendConfirmScreen() {
         recipient_phone: paymentMethod === "phone" ? recipientRaw : null,
         recipient_name: recipientName,
         amount: transferAmount,
-        currency: "USD",
+        currency: params.currency || "USD",
         converted_amount: parseFloat(params.converted ?? "0"),
-        converted_currency: "MXN",
+        converted_currency: params.convertedCurrency || "MXN",
         exchange_rate: parseFloat(params.rate ?? "1"),
         fee: 0,
         status: "pending",
@@ -363,7 +365,8 @@ export default function SendConfirmScreen() {
                     recipient: params.recipient ?? "",
                     amount: params.amount ?? "0",
                     converted: params.converted ?? "0",
-                    convertedCurrency: "MXN",
+                    currency: params.currency || "USD",
+                    convertedCurrency: params.convertedCurrency || "MXN",
                     status: finalStatus,
                   },
                 })

@@ -15,6 +15,26 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "YOUR_ANON_KEY";
 
+const isWeb = typeof window !== "undefined";
+
+const webStorage = {
+  getItem: (key: string) => Promise.resolve(window.localStorage.getItem(key)),
+  setItem: (key: string, value: string) => {
+    window.localStorage.setItem(key, value);
+    return Promise.resolve();
+  },
+  removeItem: (key: string) => {
+    window.localStorage.removeItem(key);
+    return Promise.resolve();
+  },
+};
+
+const noOpLock = async <T>(
+  _name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<T>,
+) => fn();
+
 export const isSupabaseConfigured =
   !SUPABASE_URL.includes("YOUR_PROJECT_ID") &&
   SUPABASE_ANON_KEY !== "YOUR_ANON_KEY";
@@ -34,10 +54,11 @@ export const supabase = createClient<Database>(
   SUPABASE_ANON_KEY,
   {
     auth: {
-      storage: AsyncStorage,
-      autoRefreshToken: true,
+      storage: isWeb ? webStorage : AsyncStorage,
+      autoRefreshToken: !isWeb,
       persistSession: true,
-      detectSessionInUrl: false, // Required for React Native
+      detectSessionInUrl: isWeb,
+      lock: noOpLock,
     },
   },
 );

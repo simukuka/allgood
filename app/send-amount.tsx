@@ -25,12 +25,14 @@ import {
     getRateLockRemaining,
 } from "@/lib/exchange-rates";
 import { getPrimaryBalance } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
+import { type CurrencyCode, formatCurrency } from "@/utils/currency";
 import { validateAmount } from "@/utils/currency";
 
 export default function SendAmountScreen() {
   const colors = useThemeColors();
   const { preferences } = useApp();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const t = useTranslation(preferences.language);
   const { recipient, method } = useLocalSearchParams<{
     recipient: string;
@@ -38,6 +40,8 @@ export default function SendAmountScreen() {
   }>();
   const [amount, setAmount] = useState("");
   const [availableBalance, setAvailableBalance] = useState(0);
+  const [sourceCurrency, setSourceCurrency] = useState<CurrencyCode>("USD");
+  const [targetCurrency, setTargetCurrency] = useState<CurrencyCode>("MXN");
 
   // Entrance animation
   const { fadeAnim, slideAnim } = useEntranceAnimation();
@@ -45,8 +49,33 @@ export default function SendAmountScreen() {
   // Load user's balance
   useEffect(() => {
     if (!user) return;
-    getPrimaryBalance(user.id).then(({ balance }) => setAvailableBalance(balance));
+    getPrimaryBalance(user.id).then(({ balance, currency }) => {
+      setAvailableBalance(balance);
+      setSourceCurrency((currency as CurrencyCode) || "USD");
+    });
   }, [user]);
+
+  useEffect(() => {
+    const methodValue = method || "email";
+    const recipientValue = (recipient || "").trim();
+
+    if (!recipientValue || methodValue === "wallet") {
+      setTargetCurrency("MXN");
+      return;
+    }
+
+    const lookupColumn = methodValue === "phone" ? "phone" : "email";
+    supabase
+      .from("profiles")
+      .select("currency")
+      .eq(lookupColumn, recipientValue)
+      .maybeSingle()
+      .then(({ data }) => {
+        const recipientCurrency = (data?.currency as CurrencyCode) || "MXN";
+        setTargetCurrency(recipientCurrency);
+      })
+      .catch(() => setTargetCurrency("MXN"));
+  }, [recipient, method]);
 
   // Live exchange rate state
   const [exchangeRate, setExchangeRate] = useState(17.15);
@@ -57,7 +86,7 @@ export default function SendAmountScreen() {
   const loadRate = useCallback(async () => {
     setRateLoading(true);
     try {
-      const { rate, isLive } = await getExchangeRate("USD", "MXN");
+      const { rate, isLive } = await getExchangeRate(sourceCurrency, targetCurrency);
       setExchangeRate(parseFloat(rate.toFixed(4)));
       setIsLiveRate(isLive);
       setRateLockSeconds(Math.floor(getRateLockRemaining()));
@@ -66,7 +95,7 @@ export default function SendAmountScreen() {
     } finally {
       setRateLoading(false);
     }
-  }, []);
+  }, [sourceCurrency, targetCurrency]);
 
   useEffect(() => {
     loadRate();
@@ -112,6 +141,8 @@ export default function SendAmountScreen() {
                   amount: numAmount.toFixed(2),
                   converted,
                   rate: exchangeRate.toString(),
+                  currency: sourceCurrency,
+                  convertedCurrency: targetCurrency,
                 },
               })
             }
@@ -176,7 +207,7 @@ export default function SendAmountScreen() {
       <View style={styles.balanceRow}>
         <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Available balance</Text>
         <Text style={[styles.balanceValue, { color: availableBalance > 0 ? colors.text : colors.error }]}>
-          ${availableBalance.toFixed(2)} USD
+          {formatCurrency(availableBalance, sourceCurrency)}
         </Text>
       </View>
 
@@ -185,7 +216,7 @@ export default function SendAmountScreen() {
       </Text>
 
       <View style={styles.amountWrap}>
-        <Text style={[styles.currency, { color: colors.primary }]}>$</Text>
+        <Text style={[styles.currency, { color: colors.primary }]}>{sourceCurrency === "USD" ? "$" : sourceCurrency + " "}</Text>
         <TextInput
           style={[styles.amountInput, { color: colors.text }]}
           placeholder="0.00"
@@ -204,7 +235,7 @@ export default function SendAmountScreen() {
       )}
       {insufficientFunds && (
         <Text style={[styles.errorText, { color: colors.error }]}>
-          Insufficient funds. Your balance is ${availableBalance.toFixed(2)}.
+          Insufficient funds. Your balance is {formatCurrency(availableBalance, sourceCurrency)}.
         </Text>
       )}
 
@@ -222,7 +253,7 @@ export default function SendAmountScreen() {
               {t("youSend")}
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.text }]}>
-              ${numAmount.toFixed(2)} USD
+              {formatCurrency(numAmount, sourceCurrency)}
             </Text>
           </View>
           <View
@@ -240,7 +271,7 @@ export default function SendAmountScreen() {
               ) : (
                 <>
                   <Text style={[styles.breakdownValue, { color: colors.text }]}>
-                    1 USD = {exchangeRate} MXN
+                    1 {sourceCurrency} = {exchangeRate} {targetCurrency}
                   </Text>
                   <Pressable onPress={handleRefreshRate} hitSlop={8}>
                     <Ionicons
@@ -289,7 +320,7 @@ export default function SendAmountScreen() {
               {t("theyReceive")}
             </Text>
             <Text style={[styles.breakdownValueBold, { color: colors.text }]}>
-              ${converted} MXN
+              {formatCurrency(parseFloat(converted), targetCurrency)}
             </Text>
           </View>
         </View>
