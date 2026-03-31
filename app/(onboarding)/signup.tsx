@@ -51,7 +51,7 @@ const ID_OPTIONS = [
   { value: 'ssn',       label: 'SSN',       full: 'Social Security Number', placeholder: 'XXX-XX-XXXX'      },
   { value: 'itin',      label: 'ITIN',      full: 'Individual Taxpayer ID',  placeholder: '9XX-XX-XXXX'     },
   { value: 'matricula', label: 'Matrícula', full: 'Matrícula Consular',      placeholder: 'Matrícula number' },
-  { value: 'passport',  label: 'Passport',  full: 'Foreign Passport',        placeholder: 'Passport number'  },
+  { value: 'passport',  label: 'Passport',  full: 'Passport (Local or Foreign)', placeholder: 'Passport number'  },
 ];
 
 type Step = 0 | 1 | 2;
@@ -376,7 +376,6 @@ export default function SignupScreen() {
                     onBlur={() => setFocused(null)}
                     autoCapitalize="characters"
                     autoCorrect={false}
-                    secureTextEntry
                     tint={tint}
                   />
                 </Field>

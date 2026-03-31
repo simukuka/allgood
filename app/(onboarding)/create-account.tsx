@@ -59,7 +59,7 @@ export default function CreateAccountScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await setPreferences({ signInMethod: selectedMethod });
     await setBiometricPreference(biometricEnabled);
-    router.push("/(onboarding)/auth");
+    router.push("/(onboarding)/signup");
   };
 
   return (

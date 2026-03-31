@@ -241,10 +241,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: supabaseConfigErrorMessage };
     }
 
+    const emailRedirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/(onboarding)/login`
+        : "allgood://(onboarding)/login";
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo,
         data: {
           full_name: fullName,
           phone: details?.phone ?? null,

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -43,6 +43,8 @@ const METHODS = [
 export default function DepositScreen() {
   const colors = useThemeColors();
   const { user } = useAuth();
+  const params = useLocalSearchParams<{ topup?: string }>();
+  const realBankingEnabled = process.env.EXPO_PUBLIC_REAL_BANKING_ENABLED === "true";
 
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("bank");
@@ -63,6 +65,7 @@ export default function DepositScreen() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Success animation
   const successScale = useSharedValue(0);
@@ -94,6 +97,14 @@ export default function DepositScreen() {
       })
       .finally(() => setBankAccountsLoading(false));
   }, [user]);
+
+  useEffect(() => {
+    if (params.topup === "success") {
+      setNotice("Funding completed. Your updated balance will appear shortly.");
+    } else if (params.topup === "cancel") {
+      setNotice("Funding was canceled. No money was moved.");
+    }
+  }, [params.topup]);
 
   const handleLinkBank = async () => {
     if (!user) return;
@@ -158,7 +169,37 @@ export default function DepositScreen() {
     if (!user || !canConfirm) return;
     setLoading(true);
     setError(null);
+    setNotice(null);
     try {
+      if (realBankingEnabled && (selectedMethod === "bank" || selectedMethod === "card")) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Please sign in again to continue.");
+
+        const response = await fetch("/api/stripe/topup-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            amount: numAmount,
+            currency: "USD",
+            method: selectedMethod,
+          }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload?.url) {
+          throw new Error(payload?.error || "Unable to start secure bank/card funding.");
+        }
+
+        if (typeof window !== "undefined") {
+          window.location.assign(payload.url);
+          return;
+        }
+      }
+
       if (selectedMethod === "bank") {
         if (!selectedBankAccountId) {
           throw new Error("Link and select a bank account first.");
@@ -255,6 +296,13 @@ export default function DepositScreen() {
             <Text style={[styles.headerTitle, { color: colors.text }]}>Add funds</Text>
             <View style={styles.backBtn} />
           </View>
+
+          {notice && (
+            <View style={[styles.noticeBox, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "40" }]}>
+              <Ionicons name="information-circle" size={16} color={colors.primary} />
+              <Text style={[styles.noticeTxt, { color: colors.text }]}>{notice}</Text>
+            </View>
+          )}
 
           {/* Balance pill */}
           <View style={[styles.balancePill, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
@@ -546,6 +594,20 @@ const styles = StyleSheet.create({
   breakdownDivider: { height: 1, marginVertical: 8 },
   errorBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 16 },
   errorTxt: { fontSize: 13, marginBottom: 8 },
+  noticeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  noticeTxt: {
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 18,
+  },
   confirmBtn: { borderRadius: 16, paddingVertical: 18, alignItems: "center", marginBottom: 16 },
   confirmTxt: { fontSize: 16, fontWeight: "700" },
   disclaimer: { fontSize: 12, textAlign: "center", lineHeight: 18 },

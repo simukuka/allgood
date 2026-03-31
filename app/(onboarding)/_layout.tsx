@@ -13,7 +13,6 @@ export default function OnboardingLayout() {
     >
       <Stack.Screen name="index"        options={{ animation: "fade", animationDuration: 300, gestureEnabled: false }} />
       <Stack.Screen name="create-account" />
-      <Stack.Screen name="auth"         options={{ animation: "ios" }} />
       <Stack.Screen name="login"        options={{ animation: "ios" }} />
       <Stack.Screen name="signup"       options={{ animation: "ios" }} />
       <Stack.Screen name="preferences"  options={{ animation: "fade_from_bottom", animationDuration: 380 }} />
