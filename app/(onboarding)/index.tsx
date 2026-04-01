@@ -63,6 +63,41 @@ const HERO_TICKERS = [
   { icon: 'sparkles-outline' as const, txt: 'Instant account setup' },
 ];
 
+const MOTION_PROFILE: 'energetic' | 'calm' = 'energetic';
+const MOTION = MOTION_PROFILE === 'energetic'
+  ? {
+      heroDelays: { nav: 0, badge: 100, h1a: 180, h1b: 280, sub: 360, btn: 420, rate: 500, card: 520 },
+      chipDelays: [380, 440, 500],
+      tickerDelays: [540, 590, 640],
+      blob1Scale: { max: 1.26, dur: 3400 },
+      blob2Scale: { max: 1.2, min: 0.9, dur: 4400 },
+      blob1X: { amp: 26, dur: 4600 },
+      blob2Y: { amp: 22, dur: 4200 },
+      blob1DriftY: { up: -12, down: 10, dur: 4400 },
+      blob2DriftX: { amp: 14, dur: 5000 },
+      cardDriftX: { amp: 8, dur: 2200 },
+      cardFloatY: { amp: -10, dur: 1900 },
+      ctaPulse: { max: 1.04, dur: 1100 },
+      ripple: { heroIn: 260, heroOut: 220, ctaIn: 280, ctaOut: 240 },
+      shimStartDelay: 1000,
+    }
+  : {
+      heroDelays: { nav: 0, badge: 140, h1a: 240, h1b: 360, sub: 460, btn: 560, rate: 640, card: 700 },
+      chipDelays: [500, 570, 640],
+      tickerDelays: [700, 760, 820],
+      blob1Scale: { max: 1.2, dur: 5200 },
+      blob2Scale: { max: 1.14, min: 0.94, dur: 6000 },
+      blob1X: { amp: 18, dur: 6200 },
+      blob2Y: { amp: 14, dur: 5600 },
+      blob1DriftY: { up: -8, down: 6, dur: 6200 },
+      blob2DriftX: { amp: 9, dur: 6400 },
+      cardDriftX: { amp: 4, dur: 3200 },
+      cardFloatY: { amp: -7, dur: 2600 },
+      ctaPulse: { max: 1.025, dur: 1600 },
+      ripple: { heroIn: 320, heroOut: 260, ctaIn: 340, ctaOut: 280 },
+      shimStartDelay: 1100,
+    };
+
 // ── Feature card data ─────────────────────────────────────────
 const FEATURES = [
   {
@@ -224,20 +259,20 @@ export default function LandingScreen() {
   const { user, isLoading } = useAuth();
 
   // Hero entrance
-  const navAnim   = useEntrance(0,   -8);
-  const badgeAnim = useEntrance(100,  24);
-  const h1aAnim   = useEntrance(180,  40);
-  const h1bAnim   = useEntrance(280,  40);
-  const subAnim   = useEntrance(360,  20);
-  const chip0Anim = useEntrance(380,  14);
-  const chip1Anim = useEntrance(440,  14);
-  const chip2Anim = useEntrance(500,  14);
-  const btnsAnim  = useEntrance(420,  20);
-  const rateAnim  = useEntrance(500,  14);
-  const tick0Anim = useEntrance(540,  12);
-  const tick1Anim = useEntrance(590,  12);
-  const tick2Anim = useEntrance(640,  12);
-  const cardAnim  = useEntrance(520,  48);
+  const navAnim   = useEntrance(MOTION.heroDelays.nav, -8);
+  const badgeAnim = useEntrance(MOTION.heroDelays.badge, 24);
+  const h1aAnim   = useEntrance(MOTION.heroDelays.h1a, 40);
+  const h1bAnim   = useEntrance(MOTION.heroDelays.h1b, 40);
+  const subAnim   = useEntrance(MOTION.heroDelays.sub, 20);
+  const chip0Anim = useEntrance(MOTION.chipDelays[0], 14);
+  const chip1Anim = useEntrance(MOTION.chipDelays[1], 14);
+  const chip2Anim = useEntrance(MOTION.chipDelays[2], 14);
+  const btnsAnim  = useEntrance(MOTION.heroDelays.btn, 20);
+  const rateAnim  = useEntrance(MOTION.heroDelays.rate, 14);
+  const tick0Anim = useEntrance(MOTION.tickerDelays[0], 12);
+  const tick1Anim = useEntrance(MOTION.tickerDelays[1], 12);
+  const tick2Anim = useEntrance(MOTION.tickerDelays[2], 12);
+  const cardAnim  = useEntrance(MOTION.heroDelays.card, 48);
 
   // Blob animations
   const blob1S = useSharedValue(1);
@@ -261,43 +296,43 @@ export default function LandingScreen() {
 
   useEffect(() => {
     blob1S.value = withRepeat(withSequence(
-      withTiming(1.26, { duration: 3400, easing: Easing.inOut(Easing.sin) }),
-      withTiming(1.0,  { duration: 3400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob1Scale.max, { duration: MOTION.blob1Scale.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.0, { duration: MOTION.blob1Scale.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, false);
     blob2S.value = withRepeat(withSequence(
-      withTiming(1.2, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0.9, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob2Scale.max, { duration: MOTION.blob2Scale.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob2Scale.min, { duration: MOTION.blob2Scale.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, false);
     blob1X.value = withRepeat(withSequence(
-      withTiming(26, { duration: 4600, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-26, { duration: 4600, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob1X.amp, { duration: MOTION.blob1X.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-MOTION.blob1X.amp, { duration: MOTION.blob1X.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     blob2Y.value = withRepeat(withSequence(
-      withTiming(-22, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(22,  { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-MOTION.blob2Y.amp, { duration: MOTION.blob2Y.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob2Y.amp, { duration: MOTION.blob2Y.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     blob1DriftY.value = withRepeat(withSequence(
-      withTiming(-12, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
-      withTiming(10,  { duration: 4400, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob1DriftY.up, { duration: MOTION.blob1DriftY.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob1DriftY.down, { duration: MOTION.blob1DriftY.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     blob2DriftX.value = withRepeat(withSequence(
-      withTiming(14,  { duration: 5000, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-14, { duration: 5000, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.blob2DriftX.amp, { duration: MOTION.blob2DriftX.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-MOTION.blob2DriftX.amp, { duration: MOTION.blob2DriftX.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     cardDriftX.value = withRepeat(withSequence(
-      withTiming(8,   { duration: 2200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-8,  { duration: 2200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0,   { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.cardDriftX.amp, { duration: MOTION.cardDriftX.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-MOTION.cardDriftX.amp, { duration: MOTION.cardDriftX.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0, { duration: MOTION.cardDriftX.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, false);
-    cardFloat.value = withDelay(700, withRepeat(withSequence(
-      withTiming(-10, { duration: 1900, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0,   { duration: 1900, easing: Easing.inOut(Easing.sin) }),
+    cardFloat.value = withDelay(MOTION.heroDelays.card + 180, withRepeat(withSequence(
+      withTiming(MOTION.cardFloatY.amp, { duration: MOTION.cardFloatY.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0, { duration: MOTION.cardFloatY.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, true));
     ctaPulse.value = withDelay(1200, withRepeat(withSequence(
-      withTiming(1.04, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
-      withTiming(1.0,  { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+      withTiming(MOTION.ctaPulse.max, { duration: MOTION.ctaPulse.dur, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.0, { duration: MOTION.ctaPulse.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, false));
-    shimX.value = withDelay(1000, withRepeat(withSequence(
+    shimX.value = withDelay(MOTION.shimStartDelay, withRepeat(withSequence(
       withTiming(SW + 120, { duration: 700, easing: Easing.out(Easing.quad) }),
       withTiming(-SW,      { duration: 0 }),
       withTiming(-SW,      { duration: 2400 }),
@@ -328,11 +363,17 @@ export default function LandingScreen() {
   const log = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);  router.push('/(onboarding)/login'); };
   const triggerHeroRipple = () => {
     heroRipple.value = 0;
-    heroRipple.value = withSequence(withTiming(1, { duration: 260 }), withTiming(0, { duration: 220 }));
+    heroRipple.value = withSequence(
+      withTiming(1, { duration: MOTION.ripple.heroIn }),
+      withTiming(0, { duration: MOTION.ripple.heroOut }),
+    );
   };
   const triggerCtaRipple = () => {
     ctaRipple.value = 0;
-    ctaRipple.value = withSequence(withTiming(1, { duration: 280 }), withTiming(0, { duration: 240 }));
+    ctaRipple.value = withSequence(
+      withTiming(1, { duration: MOTION.ripple.ctaIn }),
+      withTiming(0, { duration: MOTION.ripple.ctaOut }),
+    );
   };
 
   return (
