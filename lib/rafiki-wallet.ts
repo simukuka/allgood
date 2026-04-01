@@ -133,6 +133,15 @@ export async function resolveRecipientWallet(
   if (method === "wallet") {
     // For direct wallet addresses, treat the identifier as the walletAddressId
     recipientWalletAddressId = identifier;
+
+    const { data: walletProfile } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .eq("rafiki_wallet_address_id", identifier.trim())
+      .maybeSingle();
+
+    recipientProfileId = walletProfile?.id ?? null;
+    recipientFullName = walletProfile?.full_name ?? null;
   } else {
     // Look up by email or phone in Supabase profiles
     const column = method === "email" ? "email" : "phone";

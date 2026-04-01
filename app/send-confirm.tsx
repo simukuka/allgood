@@ -233,7 +233,17 @@ export default function SendConfirmScreen() {
       let fallbackRecipientId: string | null = null;
       let fallbackRecipientName: string = recipientName;
 
-      if (paymentMethod !== "wallet") {
+      if (paymentMethod === "wallet") {
+        const { data: fallbackRecipient } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("rafiki_wallet_address_id", recipientRaw)
+          .maybeSingle();
+
+        fallbackRecipientId = fallbackRecipient?.id ?? null;
+        fallbackRecipientName =
+          fallbackRecipient?.full_name || fallbackRecipientName;
+      } else {
         const { data: fallbackRecipient } = await supabase
           .from("profiles")
           .select("id, full_name")
@@ -291,17 +301,21 @@ export default function SendConfirmScreen() {
       const txId = txData.id;
 
       const completeLocally = async (reason: string) => {
-        if (fallbackRecipientId) {
-          await supabase
-            .from("transactions")
-            .update({
-              recipient_id: fallbackRecipientId,
-              recipient_name: fallbackRecipientName,
-            })
-            .eq("id", txId);
-
-          await addFundsToChecking(fallbackRecipientId, transferAmount);
+        if (!fallbackRecipientId) {
+          throw new Error(
+            "Recipient account could not be resolved for safe fallback crediting.",
+          );
         }
+
+        await supabase
+          .from("transactions")
+          .update({
+            recipient_id: fallbackRecipientId,
+            recipient_name: fallbackRecipientName,
+          })
+          .eq("id", txId);
+
+        await addFundsToChecking(fallbackRecipientId, transferAmount);
 
         await appendTransactionNote(
           txId,
