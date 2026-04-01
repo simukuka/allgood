@@ -283,6 +283,8 @@ export default function LandingScreen() {
   const blob1DriftY = useSharedValue(0);
   const blob2DriftX = useSharedValue(0);
   const cardDriftX = useSharedValue(0);
+  const beamX1 = useSharedValue(-SW);
+  const beamX2 = useSharedValue(SW);
   const heroRipple = useSharedValue(0);
   const ctaRipple = useSharedValue(0);
   const ctaPulse  = useSharedValue(1);
@@ -324,6 +326,16 @@ export default function LandingScreen() {
       withTiming(-MOTION.cardDriftX.amp, { duration: MOTION.cardDriftX.dur, easing: Easing.inOut(Easing.sin) }),
       withTiming(0, { duration: MOTION.cardDriftX.dur, easing: Easing.inOut(Easing.sin) }),
     ), -1, false);
+    beamX1.value = withRepeat(withSequence(
+      withTiming(SW + 260, { duration: 4200, easing: Easing.inOut(Easing.quad) }),
+      withTiming(-SW - 260, { duration: 0 }),
+      withTiming(-SW - 260, { duration: 900 }),
+    ), -1, false);
+    beamX2.value = withRepeat(withSequence(
+      withTiming(-SW - 220, { duration: 5200, easing: Easing.inOut(Easing.quad) }),
+      withTiming(SW + 220, { duration: 0 }),
+      withTiming(SW + 220, { duration: 1200 }),
+    ), -1, false);
     cardFloat.value = withDelay(MOTION.heroDelays.card + 180, withRepeat(withSequence(
       withTiming(MOTION.cardFloatY.amp, { duration: MOTION.cardFloatY.dur, easing: Easing.inOut(Easing.sin) }),
       withTiming(0, { duration: MOTION.cardFloatY.dur, easing: Easing.inOut(Easing.sin) }),
@@ -345,6 +357,8 @@ export default function LandingScreen() {
   const blob1Style    = useAnimatedStyle(() => ({ transform: [{ scale: blob1S.value }, { translateX: blob1X.value }, { translateY: blob1DriftY.value }] }));
   const blob2Style    = useAnimatedStyle(() => ({ transform: [{ scale: blob2S.value }, { translateY: blob2Y.value }, { translateX: blob2DriftX.value }] }));
   const cardFloatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: cardFloat.value }, { translateX: cardDriftX.value }] }));
+  const beam1Style = useAnimatedStyle(() => ({ transform: [{ translateX: beamX1.value }, { rotate: '-18deg' }] }));
+  const beam2Style = useAnimatedStyle(() => ({ transform: [{ translateX: beamX2.value }, { rotate: '16deg' }] }));
   const ctaPulseStyle  = useAnimatedStyle(() => ({ transform: [{ scale: ctaPulse.value }] }));
   const shimStyle      = useAnimatedStyle(() => ({ transform: [{ translateX: shimX.value }] }));
   const heroRippleStyle = useAnimatedStyle(() => ({
@@ -392,6 +406,12 @@ export default function LandingScreen() {
           {/* Glow blobs */}
           <Animated.View style={[s.blob1, blob1Style]} pointerEvents="none" />
           <Animated.View style={[s.blob2, blob2Style]} pointerEvents="none" />
+          <Animated.View style={[s.heroBeam, beam1Style]} pointerEvents="none">
+            <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          </Animated.View>
+          <Animated.View style={[s.heroBeam2, beam2Style]} pointerEvents="none">
+            <LinearGradient colors={['rgba(46,255,213,0)', 'rgba(46,255,213,0.22)', 'rgba(46,255,213,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          </Animated.View>
 
           {/* Nav */}
           <SafeAreaView edges={['top']}>
@@ -512,6 +532,20 @@ export default function LandingScreen() {
                   </View>
                 </View>
               </Animated.View>
+            </Animated.View>
+
+            <Animated.View style={[s.momentumRow, rateAnim]}>
+              {[
+                { icon: 'trending-up-outline' as const, title: '+42 pts', sub: 'Credit growth' },
+                { icon: 'globe-outline' as const, title: '47 FX', sub: 'Live corridors' },
+                { icon: 'time-outline' as const, title: '2 min', sub: 'Avg delivery' },
+              ].map((m, i) => (
+                <View key={i} style={s.momentumCard}>
+                  <Ionicons name={m.icon} size={14} color={WHITE} />
+                  <Text style={s.momentumTitle}>{m.title}</Text>
+                  <Text style={s.momentumSub}>{m.sub}</Text>
+                </View>
+              ))}
             </Animated.View>
           </SafeAreaView>
         </View>
@@ -751,6 +785,20 @@ const s = StyleSheet.create({
     position: 'absolute', width: 280, height: 280, borderRadius: 140,
     backgroundColor: 'rgba(0,0,0,0.15)', bottom: -40, right: -80,
   },
+  heroBeam: {
+    position: 'absolute',
+    width: 180,
+    height: 620,
+    top: -130,
+    opacity: 0.9,
+  },
+  heroBeam2: {
+    position: 'absolute',
+    width: 120,
+    height: 560,
+    top: -80,
+    opacity: 0.85,
+  },
   nav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8,
@@ -896,6 +944,26 @@ const s = StyleSheet.create({
   txName: { fontSize: 12, fontWeight: '600', color: WHITE, marginBottom: 1 },
   txMeta: { fontSize: 10, color: MUTED },
   txAmt:  { fontSize: 13, fontWeight: '700', color: RED },
+
+  momentumRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 24,
+    marginTop: 12,
+  },
+  momentumCard: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(7,16,23,0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 3,
+  },
+  momentumTitle: { fontSize: 14, fontWeight: '800', color: WHITE },
+  momentumSub: { fontSize: 10, color: 'rgba(255,255,255,0.78)', fontWeight: '600' },
 
   // Trust strip
   trustStrip: {
