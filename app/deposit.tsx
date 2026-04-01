@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -198,6 +199,9 @@ export default function DepositScreen() {
           window.location.assign(payload.url);
           return;
         }
+
+        await WebBrowser.openBrowserAsync(payload.url);
+        return;
       }
 
       if (selectedMethod === "bank") {

@@ -196,6 +196,24 @@ export default function SendConfirmScreen() {
     ]).start();
   };
 
+  const isRafikiInfrastructureError = (message: string): boolean => {
+    const lower = message.toLowerCase();
+    return (
+      lower.includes("fetch failed") ||
+      lower.includes("request failed") ||
+      lower.includes("network") ||
+      lower.includes("timeout") ||
+      lower.includes("http 5") ||
+      lower.includes("502") ||
+      lower.includes("503") ||
+      lower.includes("504") ||
+      lower.includes("endpoint not configured") ||
+      lower.includes("failed to create quote") ||
+      lower.includes("failed to create outgoing payment") ||
+      lower.includes("payment status polling failed")
+    );
+  };
+
   const handleConfirm = async () => {
     if (!user) return;
     setSending(true);
@@ -211,6 +229,22 @@ export default function SendConfirmScreen() {
         : recipientRaw;
 
     try {
+      const lookupColumn = paymentMethod === "phone" ? "phone" : "email";
+      let fallbackRecipientId: string | null = null;
+      let fallbackRecipientName: string = recipientName;
+
+      if (paymentMethod !== "wallet") {
+        const { data: fallbackRecipient } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq(lookupColumn, recipientRaw)
+          .maybeSingle();
+
+        fallbackRecipientId = fallbackRecipient?.id ?? null;
+        fallbackRecipientName =
+          fallbackRecipient?.full_name || fallbackRecipientName;
+      }
+
       const [biometricEnabled, biometricAvailable, trustedRecipient] = await Promise.all([
         getBiometricPreference(),
         isBiometricAvailable(),
@@ -254,6 +288,28 @@ export default function SendConfirmScreen() {
         throw new Error(txCreateError || "Unable to create transaction.");
       }
       createdTransactionId = txData.id;
+      const txId = txData.id;
+
+      const completeLocally = async (reason: string) => {
+        if (fallbackRecipientId) {
+          await supabase
+            .from("transactions")
+            .update({
+              recipient_id: fallbackRecipientId,
+              recipient_name: fallbackRecipientName,
+            })
+            .eq("id", txId);
+
+          await addFundsToChecking(fallbackRecipientId, transferAmount);
+        }
+
+        await appendTransactionNote(
+          txId,
+          `rafiki_fallback_local_ledger:${reason}`,
+        );
+        await updateTransactionStatus(txId, "completed");
+        setFinalStatus("completed");
+      };
 
       // Attempt Rafiki GraphQL payment when configured
       if (isRafikiGraphqlConfigured) {
@@ -261,72 +317,91 @@ export default function SendConfirmScreen() {
         const senderWalletAddressId = profile?.rafiki_wallet_address_id ?? "";
 
         if (!senderWalletAddressId) {
-          throw new Error(
-            "Your Rafiki wallet is not yet provisioned. Please sign out and back in, or contact support.",
-          );
+          await completeLocally("sender_wallet_not_provisioned");
+        } else {
+          // Amount in minor units (cents): $12.50 → 1250
+          const amountCents = Math.round(
+            parseFloat(params.amount ?? "0") * 100,
+          ).toString();
+
+          try {
+            // Resolve the recipient to a Rafiki walletAddressId + receiver URL.
+            // For email/phone this queries Supabase for their wallet ID, then creates
+            // an incoming payment at their wallet. For wallet-address format it's direct.
+            const { recipient: resolved, error: resolveErr } =
+              await resolveRecipientWallet(
+                recipientRaw,
+                paymentMethod as "email" | "phone" | "wallet",
+                amountCents,
+              );
+
+            if (resolveErr || !resolved) {
+              if (isRafikiInfrastructureError(resolveErr || "")) {
+                await completeLocally(resolveErr || "recipient_resolve_failed");
+              } else {
+                await updateTransactionStatus(txData.id, "failed");
+                throw new Error(resolveErr || "Could not resolve recipient wallet.");
+              }
+            } else {
+              if (resolved.profileId) {
+                await supabase
+                  .from("transactions")
+                  .update({
+                    recipient_id: resolved.profileId,
+                    recipient_name: resolved.fullName || recipientName,
+                  })
+                  .eq("id", txData.id);
+              }
+
+              const result = await sendPayment({
+                senderWalletAddressId,
+                receiverUrl: resolved.receiverUrl,
+                debitAmount: { value: amountCents, assetCode: "USD", assetScale: 2 },
+                metadata: {
+                  transactionId: txData.id,
+                  recipientName,
+                  paymentMethod,
+                  ...(paymentMethod === "email" && { recipientEmail: recipientRaw }),
+                  ...(paymentMethod === "phone" && { recipientPhone: recipientRaw }),
+                },
+              });
+
+              if (!result.success || !result.payment) {
+                const paymentError = result.error || "Rafiki payment failed.";
+
+                if (isRafikiInfrastructureError(paymentError)) {
+                  await completeLocally(paymentError);
+                } else {
+                  await updateTransactionStatus(txData.id, "failed");
+                  throw new Error(paymentError);
+                }
+              } else {
+                await appendTransactionNote(txData.id, `rafiki_payment_id:${result.payment.id}`);
+
+                await updateTransactionStatus(
+                  txData.id,
+                  result.payment.state === "SENT" ? "completed" : "pending",
+                );
+
+                if (result.payment.state === "SENT" && resolved.profileId) {
+                  await addFundsToChecking(resolved.profileId, transferAmount);
+                }
+
+                setRafikiPaymentId(result.payment.id);
+                setFinalStatus(result.payment.state === "SENT" ? "completed" : "processing");
+              }
+            }
+          } catch (rafikiErr: unknown) {
+            const rafikiMsg =
+              rafikiErr instanceof Error ? rafikiErr.message : String(rafikiErr);
+
+            if (isRafikiInfrastructureError(rafikiMsg)) {
+              await completeLocally(rafikiMsg);
+            } else {
+              throw rafikiErr;
+            }
+          }
         }
-
-        // Amount in minor units (cents): $12.50 → 1250
-        const amountCents = Math.round(
-          parseFloat(params.amount ?? "0") * 100,
-        ).toString();
-
-        // Resolve the recipient to a Rafiki walletAddressId + receiver URL.
-        // For email/phone this queries Supabase for their wallet ID, then creates
-        // an incoming payment at their wallet. For wallet-address format it's direct.
-        const { recipient: resolved, error: resolveErr } =
-          await resolveRecipientWallet(
-            recipientRaw,
-            paymentMethod as "email" | "phone" | "wallet",
-            amountCents,
-          );
-
-        if (resolveErr || !resolved) {
-          await updateTransactionStatus(txData.id, "failed");
-          throw new Error(resolveErr || "Could not resolve recipient wallet.");
-        }
-
-        if (resolved.profileId) {
-          await supabase
-            .from("transactions")
-            .update({
-              recipient_id: resolved.profileId,
-              recipient_name: resolved.fullName || recipientName,
-            })
-            .eq("id", txData.id);
-        }
-
-        const result = await sendPayment({
-          senderWalletAddressId,
-          receiverUrl: resolved.receiverUrl,
-          debitAmount: { value: amountCents, assetCode: "USD", assetScale: 2 },
-          metadata: {
-            transactionId: txData.id,
-            recipientName,
-            paymentMethod,
-            ...(paymentMethod === "email" && { recipientEmail: recipientRaw }),
-            ...(paymentMethod === "phone" && { recipientPhone: recipientRaw }),
-          },
-        });
-
-        if (!result.success || !result.payment) {
-          await updateTransactionStatus(txData.id, "failed");
-          throw new Error(result.error || "Rafiki payment failed.");
-        }
-
-        await appendTransactionNote(txData.id, `rafiki_payment_id:${result.payment.id}`);
-
-        await updateTransactionStatus(
-          txData.id,
-          result.payment.state === "SENT" ? "completed" : "pending",
-        );
-
-        if (result.payment.state === "SENT" && resolved.profileId) {
-          await addFundsToChecking(resolved.profileId, transferAmount);
-        }
-
-        setRafikiPaymentId(result.payment.id);
-        setFinalStatus(result.payment.state === "SENT" ? "completed" : "processing");
       } else {
         // Rafiki not configured — mark completed immediately (local ledger mode)
         await updateTransactionStatus(txData.id, "completed");
