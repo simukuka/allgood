@@ -174,23 +174,17 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
   const float = useSharedValue(0);
   const rotate = useSharedValue(0);
   const scale = useSharedValue(1);
-  const glowOpacity = useSharedValue(0);
 
   useEffect(() => {
     // Floating bob motion
     float.value = withRepeat(withSequence(
-      withTiming(-4, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(3, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-2, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.5, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     // Subtle rotation sway
     rotate.value = withRepeat(withSequence(
-      withTiming(1.2, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-1.2, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
-    ), -1, true);
-    // Glow pulse
-    glowOpacity.value = withRepeat(withSequence(
-      withTiming(0.45, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0.2, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.55, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-0.55, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
   }, []);
 
@@ -217,10 +211,6 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
     top: 0, left: 0, right: 0, bottom: 0,
   }));
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
-
   const flip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (flipped.value) {
@@ -244,13 +234,10 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
   return (
     <Animated.View style={[fc.wrap, animStyle]}>
       <Pressable onPress={handlePress} accessibilityRole="button" accessibilityLabel={`${feature.title} — tap for details`}>
-        {/* Glow background */}
-        <Animated.View style={[fc.glowBg, glowStyle, { borderColor: feature.tint + '40' }]} pointerEvents="none" />
-        
         {/* Front */}
         <Animated.View style={[fc.card, frontStyle]}>
           <LinearGradient colors={feature.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { borderRadius: 12, borderWidth: 1, borderColor: feature.tint + '20', opacity: 0.5 }]} />
+          <View style={[StyleSheet.absoluteFill, { borderRadius: 12, borderWidth: 1, borderColor: feature.tint + '18', opacity: 0.35 }]} />
           <View style={[fc.iconWrap, { backgroundColor: feature.tint + '35' }]}>
             <Ionicons name={feature.icon} size={18} color={feature.tint} />
           </View>
@@ -264,8 +251,8 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
 
         {/* Back */}
         <Animated.View style={[fc.card, fc.cardBack, backStyle]}>
-          <LinearGradient colors={[feature.tint + '38', feature.tint + '15']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { borderRadius: 12, borderWidth: 1, borderColor: feature.tint + '30', opacity: 0.6 }]} />
+          <LinearGradient colors={[feature.tint + '2A', feature.tint + '10']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { borderRadius: 12, borderWidth: 1, borderColor: feature.tint + '22', opacity: 0.45 }]} />
           <View style={[fc.iconWrap, { backgroundColor: feature.tint + '30' }]}>
             <Ionicons name={feature.icon} size={18} color={feature.tint} />
           </View>
@@ -322,9 +309,9 @@ function StatTile({ stat, index }: { stat: typeof STATS[0]; index: number }) {
 
   return (
     <Animated.View style={[st.tile, anim, bounceStyle]}>
-      <Animated.View style={[st.glowRing, glowStyle, { borderColor: stat.tint + '60' }]} pointerEvents="none" />
-      <LinearGradient colors={[stat.tint + '28', stat.tint + '08']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { borderRadius: 16, borderWidth: 1.5, borderColor: stat.tint + '35', opacity: 0.6 }]} />
+      <Animated.View style={[st.glowRing, glowStyle, { borderColor: stat.tint + '30' }]} pointerEvents="none" />
+      <LinearGradient colors={[stat.tint + '1C', stat.tint + '06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { borderRadius: 16, borderWidth: 1, borderColor: stat.tint + '22', opacity: 0.45 }]} />
       <View style={[st.dot, { backgroundColor: stat.tint }]} />
       <Text style={[st.num, { color: stat.tint }]}>{displayed}</Text>
       <Text style={st.label}>{stat.label}</Text>
@@ -1091,10 +1078,10 @@ const s = StyleSheet.create({
   painCards: { gap: 10 },
   painCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: RED + '08', borderRadius: 14, padding: 14,
-    borderWidth: 1.5, borderColor: RED + '35',
+    backgroundColor: RED + '06', borderRadius: 14, padding: 13,
+    borderWidth: 1, borderColor: RED + '24',
   },
-  painIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: RED + '25', alignItems: 'center', justifyContent: 'center' },
+  painIconWrap: { width: 34, height: 34, borderRadius: 10, backgroundColor: RED + '1A', alignItems: 'center', justifyContent: 'center' },
   painTxt: { fontSize: 14, color: WHITE, fontWeight: '500', flex: 1, lineHeight: 20 },
 
   // Feature flip cards
@@ -1132,11 +1119,11 @@ const s = StyleSheet.create({
 
   // Testimonials
   quoteCard: {
-    backgroundColor: SURFACE, borderRadius: 20, padding: 22,
-    overflow: 'hidden', borderWidth: 1.5, borderColor: BORDER2,
+    backgroundColor: SURFACE, borderRadius: 18, padding: 18,
+    overflow: 'hidden', borderWidth: 1, borderColor: BORDER,
   },
-  quoteTop:  { marginBottom: 14 },
-  quoteTxt:  { fontSize: 15, color: WHITE, lineHeight: 24, fontWeight: '500', marginBottom: 18 },
+  quoteTop:  { marginBottom: 10 },
+  quoteTxt:  { fontSize: 14, color: WHITE, lineHeight: 22, fontWeight: '500', marginBottom: 14 },
   quoteAuthor: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   quoteAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   quoteInit:   { fontSize: 15, fontWeight: '800' },
@@ -1149,16 +1136,16 @@ const s = StyleSheet.create({
   },
   compareBad: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: RED + '15', borderRadius: 12, padding: 14,
-    borderWidth: 1.5, borderColor: RED + '35',
+    backgroundColor: RED + '0E', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: RED + '24',
   },
-  compareBadTxt:  { fontSize: 13, color: RED, fontWeight: '600', flex: 1 },
+  compareBadTxt:  { fontSize: 13, color: RED, fontWeight: '500', flex: 1 },
   compareGood: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: TEAL + '15', borderRadius: 12, padding: 14,
-    borderWidth: 1.5, borderColor: TEAL + '35',
+    backgroundColor: TEAL + '0E', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: TEAL + '24',
   },
-  compareGoodTxt: { fontSize: 13, color: TEAL, fontWeight: '600', flex: 1 },
+  compareGoodTxt: { fontSize: 13, color: TEAL, fontWeight: '500', flex: 1 },
 
   // CTA
   ctaOuter: { paddingHorizontal: 20, paddingVertical: 12 },
@@ -1196,13 +1183,6 @@ const s = StyleSheet.create({
 // ── Flip card styles ──────────────────────────────────────────
 const fc = StyleSheet.create({
   wrap: { },
-  glowBg: {
-    position: 'absolute',
-    top: -2, left: -2, right: -2, bottom: -2,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    zIndex: -1,
-  },
   card: {
     backgroundColor: SURFACE, borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: BORDER2, overflow: 'hidden', minHeight: 100,
@@ -1227,9 +1207,9 @@ const st = StyleSheet.create({
   },
   glowRing: {
     position: 'absolute',
-    top: -2, left: -2, right: -2, bottom: -2,
-    borderRadius: 20,
-    borderWidth: 2,
+    top: -1, left: -1, right: -1, bottom: -1,
+    borderRadius: 18,
+    borderWidth: 1,
   },
   dot:   { width: 6, height: 6, borderRadius: 3, marginBottom: 10 },
   num:   { fontSize: 30, fontWeight: '900', letterSpacing: -1.2, marginBottom: 4 },
