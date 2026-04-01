@@ -35,10 +35,10 @@ import {
 } from '@/lib/biometrics';
 
 // ── Palette ──────────────────────────────────────────────────
-const HERO1  = '#7F77DD';
-const HERO2  = '#D4537E';
-const HERO3  = '#D85A30';
-const BG     = '#0A0A1A';
+const HERO1  = '#00A6FB';
+const HERO2  = '#06D6A0';
+const HERO3  = '#FF7A18';
+const BG     = '#071017';
 const SURF   = '#13132A';
 const SURF2  = '#1C1C35';
 const WHITE  = '#F0F0FF';
@@ -186,6 +186,16 @@ export default function LoginScreen() {
             <View style={s.headerContent}>
               <Text style={s.welcomeTxt}>Welcome back.</Text>
               <Text style={s.welcomeSub}>Sign in to continue building your financial future.</Text>
+              <View style={s.headerPills}>
+                <View style={s.headerPill}>
+                  <Ionicons name="flash-outline" size={12} color={WHITE} />
+                  <Text style={s.headerPillTxt}>Fast transfers</Text>
+                </View>
+                <View style={s.headerPill}>
+                  <Ionicons name="shield-checkmark-outline" size={12} color={WHITE} />
+                  <Text style={s.headerPillTxt}>Bank-grade security</Text>
+                </View>
+              </View>
             </View>
           </SafeAreaView>
         </Animated.View>
@@ -442,6 +452,13 @@ const s = StyleSheet.create({
   headerContent: { paddingHorizontal: 24, paddingBottom: 32, paddingTop: 16 },
   welcomeTxt: { fontSize: 36, fontWeight: '900', color: WHITE, letterSpacing: -1.5, marginBottom: 8 },
   welcomeSub: { fontSize: 15, color: 'rgba(255,255,255,0.75)', lineHeight: 22 },
+  headerPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  headerPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: 'rgba(7,16,23,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)',
+  },
+  headerPillTxt: { fontSize: 11, fontWeight: '700', color: WHITE },
 
   // Form
   scroll: { flexGrow: 1 },

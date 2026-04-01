@@ -297,6 +297,16 @@ export default function DepositScreen() {
             <View style={styles.backBtn} />
           </View>
 
+          <LinearGradient
+            colors={colors.gradientAccent as unknown as [string, string]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fundingHero}
+          >
+            <Text style={styles.fundingHeroTitle}>Receive money your way</Text>
+            <Text style={styles.fundingHeroSub}>Top up from bank, card, or cash with full visibility before you confirm.</Text>
+          </LinearGradient>
+
           {notice && (
             <View style={[styles.noticeBox, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "40" }]}>
               <Ionicons name="information-circle" size={16} color={colors.primary} />
@@ -577,6 +587,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 8, marginBottom: 24 },
   backBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 18, fontWeight: "700", letterSpacing: -0.3 },
+  fundingHero: { borderRadius: 16, padding: 16, marginBottom: 16 },
+  fundingHeroTitle: { color: "#fff", fontSize: 16, fontWeight: "800", marginBottom: 4 },
+  fundingHeroSub: { color: "rgba(255,255,255,0.88)", fontSize: 12, lineHeight: 18 },
   balancePill: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 28 },
   balancePillLabel: { fontSize: 13 },
   balancePillValue: { fontSize: 16, fontWeight: "800" },

@@ -29,10 +29,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ── Palette ──────────────────────────────────────────────────
-const HERO1  = '#7F77DD';
-const HERO2  = '#D4537E';
-const HERO3  = '#D85A30';
-const BG     = '#0A0A1A';
+const HERO1  = '#00A6FB';
+const HERO2  = '#06D6A0';
+const HERO3  = '#FF7A18';
+const BG     = '#071017';
 const SURF   = '#13132A';
 const SURF2  = '#1C1C35';
 const WHITE  = '#F0F0FF';

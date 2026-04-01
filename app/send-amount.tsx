@@ -208,6 +208,16 @@ export default function SendAmountScreen() {
         ))}
       </View>
 
+      <View style={[styles.recipientCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}> 
+        <View style={[styles.recipientIcon, { backgroundColor: colors.primary + "18" }]}>
+          <Ionicons name="person-outline" size={16} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.recipientLabel, { color: colors.textSecondary }]}>Sending to</Text>
+          <Text style={[styles.recipientValue, { color: colors.text }]} numberOfLines={1}>{recipient || "Recipient"}</Text>
+        </View>
+      </View>
+
       <View style={styles.balanceRow}>
         <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Available balance</Text>
         <Text style={[styles.balanceValue, { color: availableBalance > 0 ? colors.text : colors.error }]}>
@@ -350,6 +360,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepCircleText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  recipientCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+  },
+  recipientIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recipientLabel: { fontSize: 12 },
+  recipientValue: { fontSize: 13, fontWeight: "700" },
   balanceRow: {
     flexDirection: "row",
     justifyContent: "space-between",

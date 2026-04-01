@@ -108,6 +108,21 @@ export default function SendScreen() {
           {t("sendMoney")}
         </Text>
 
+        <LinearGradient
+          colors={colors.gradientAccent as unknown as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroCard}
+        >
+          <Text style={styles.heroTitle}>Send and receive with confidence</Text>
+          <Text style={styles.heroSub}>Real contacts, trusted paths, and clear tracking on every transfer.</Text>
+          <View style={styles.heroPillsRow}>
+            <View style={styles.heroPill}><Text style={styles.heroPillTxt}>Fast</Text></View>
+            <View style={styles.heroPill}><Text style={styles.heroPillTxt}>Secure</Text></View>
+            <View style={styles.heroPill}><Text style={styles.heroPillTxt}>No hidden fees</Text></View>
+          </View>
+        </LinearGradient>
+
         {/* ── Step Progress ─────────────────────────── */}
         <View style={styles.stepRow}>
           {STEP_LABELS.map((label, i) => (
@@ -503,8 +518,43 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     marginTop: 12,
-    marginBottom: 20,
+    marginBottom: 14,
     letterSpacing: -0.5,
+  },
+  heroCard: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 18,
+  },
+  heroTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  heroSub: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  heroPillsRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  heroPill: {
+    backgroundColor: "rgba(0,0,0,0.18)",
+    borderColor: "rgba(255,255,255,0.28)",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  heroPillTxt: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   /* Steps */
   stepRow: {

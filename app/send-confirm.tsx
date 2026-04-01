@@ -547,6 +547,16 @@ export default function SendConfirmScreen() {
         ))}
       </View>
 
+      <LinearGradient
+        colors={colors.gradientAccent as unknown as [string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.confirmHero}
+      >
+        <Text style={styles.confirmHeroTitle}>Secure transfer confirmation</Text>
+        <Text style={styles.confirmHeroSub}>Review recipient, amount, and exchange details before sending.</Text>
+      </LinearGradient>
+
       <View style={styles.amountCenter}>
         <Text style={[styles.bigAmount, { color: colors.text }]}>
           ${params.amount}
@@ -626,6 +636,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepCircleText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  confirmHero: {
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 20,
+  },
+  confirmHeroTitle: { color: "#fff", fontSize: 15, fontWeight: "800", marginBottom: 4 },
+  confirmHeroSub: { color: "rgba(255,255,255,0.88)", fontSize: 12, lineHeight: 18 },
   amountCenter: {
     alignItems: "center",
     marginBottom: 32,
