@@ -32,8 +32,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
-const CONTENT_MAX_WIDTH = 920;
-const TESTIMONIAL_CARD_WIDTH = Math.min(SW - 64, 560);
+const CONTENT_MAX_WIDTH = 1140;
+const TESTIMONIAL_CARD_WIDTH = Math.min(SW - 64, 640);
 
 // ── Palette ──────────────────────────────────────────────────
 const HERO1   = '#00A6FB';
