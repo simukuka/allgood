@@ -179,18 +179,18 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
   useEffect(() => {
     // Floating bob motion
     float.value = withRepeat(withSequence(
-      withTiming(-12, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
-      withTiming(8, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-4, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(3, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     // Subtle rotation sway
     rotate.value = withRepeat(withSequence(
-      withTiming(3.2, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-2.8, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1.2, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-1.2, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
     // Glow pulse
     glowOpacity.value = withRepeat(withSequence(
-      withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0.4, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.45, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.2, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
     ), -1, true);
   }, []);
 
@@ -234,8 +234,8 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
 
   const handlePress = () => {
     scale.value = withSequence(
-      withTiming(0.94, { duration: 60 }),
-      withTiming(1.06, { duration: 200, easing: Easing.inOut(Easing.cubic) }),
+      withTiming(0.98, { duration: 60 }),
+      withTiming(1.02, { duration: 200, easing: Easing.inOut(Easing.cubic) }),
       withTiming(1, { duration: 100 }),
     );
     flip();
@@ -375,6 +375,25 @@ export default function LandingScreen() {
   const f3 = useEntrance(380, 20);
   const f4 = useEntrance(440, 20);
   const featAnims = [f0, f1, f2, f3, f4];
+  const p0 = useEntrance(900, 16);
+  const p1 = useEntrance(980, 16);
+  const p2 = useEntrance(1060, 16);
+  const p3 = useEntrance(1140, 16);
+  const painAnims = [p0, p1, p2, p3];
+  const s0 = useEntrance(1250, 18);
+  const s1 = useEntrance(1320, 18);
+  const s2 = useEntrance(1390, 18);
+  const stepAnims = [s0, s1, s2];
+  const q0 = useEntrance(1480, 18);
+  const q1 = useEntrance(1540, 18);
+  const q2 = useEntrance(1600, 18);
+  const q3 = useEntrance(1660, 18);
+  const quoteAnims = [q0, q1, q2, q3];
+  const c0 = useEntrance(1720, 16);
+  const c1 = useEntrance(1780, 16);
+  const c2 = useEntrance(1840, 16);
+  const c3 = useEntrance(1900, 16);
+  const compareAnims = [c0, c1, c2, c3];
 
   useEffect(() => {
     blob1S.value = withRepeat(withSequence(
@@ -665,17 +684,14 @@ export default function LandingScreen() {
               'Wire fees eat 8–15% of every transfer',
               'Credit history resets at the border',
               'Financial systems are English-only',
-            ].map((txt, i) => {
-              const painAnim = useEntrance(1100 + i * 120, 24);
-              return (
-                <Animated.View key={i} style={[s.painCard, painAnim]}>
-                  <View style={s.painIconWrap}>
-                    <Ionicons name="close-circle" size={18} color={RED} />
-                  </View>
-                  <Text style={s.painTxt}>{txt}</Text>
-                </Animated.View>
-              );
-            })}
+            ].map((txt, i) => (
+              <Animated.View key={i} style={[s.painCard, painAnims[i]]}>
+                <View style={s.painIconWrap}>
+                  <Ionicons name="close-circle" size={18} color={RED} />
+                </View>
+                <Text style={s.painTxt}>{txt}</Text>
+              </Animated.View>
+            ))}
           </View>
         </View>
 
@@ -691,7 +707,7 @@ export default function LandingScreen() {
           <Text style={s.sectionSub}>Tap any card to learn more.</Text>
           <View style={s.featGrid}>
             {FEATURES.map((f, i) => (
-              <View key={i} style={{ width: (SW - 48 - 10) / 2 }}>
+              <View key={i} style={i === FEATURES.length - 1 ? s.featItemWide : s.featItemHalf}>
                 <FlipCard feature={f} style={featAnims[i]} />
               </View>
             ))}
@@ -727,23 +743,20 @@ export default function LandingScreen() {
               { n: '01', title: 'Create your account',    body: 'ITIN, passport, or Matrícula Consular. No SSN needed. Takes under 2 minutes.', tint: TEAL   },
               { n: '02', title: 'Quick biometric verify', body: 'Face or fingerprint. No branch visits. No paperwork. Faster than any bank.',   tint: PURPLE },
               { n: '03', title: 'Send, save & build',     body: 'Transfer money home. Grow your credit score. Track every dollar you earn.',    tint: CORAL  },
-            ].map((step, i) => {
-              const stepAnim = useEntrance(1600 + i * 140, 28);
-              return (
-                <Animated.View key={i} style={[s.stepRow, stepAnim]}>
-                  <View style={[s.stepNumWrap, { backgroundColor: step.tint + '28', borderColor: step.tint + '45' }]}>
-                    <Text style={[s.stepNum, { color: step.tint }]}>{step.n}</Text>
-                  </View>
-                  <View style={s.stepLine}>
-                    {i < 2 && <View style={[s.stepConnector, { backgroundColor: step.tint + '40' }]} />}
-                  </View>
-                  <View style={s.stepContent}>
-                    <Text style={s.stepTitle}>{step.title}</Text>
-                    <Text style={s.stepBody}>{step.body}</Text>
-                  </View>
-                </Animated.View>
-              );
-            })}
+            ].map((step, i) => (
+              <Animated.View key={i} style={[s.stepRow, stepAnims[i]]}>
+                <View style={[s.stepNumWrap, { backgroundColor: step.tint + '28', borderColor: step.tint + '45' }]}>
+                  <Text style={[s.stepNum, { color: step.tint }]}>{step.n}</Text>
+                </View>
+                <View style={s.stepLine}>
+                  {i < 2 && <View style={[s.stepConnector, { backgroundColor: step.tint + '40' }]} />}
+                </View>
+                <View style={s.stepContent}>
+                  <Text style={s.stepTitle}>{step.title}</Text>
+                  <Text style={s.stepBody}>{step.body}</Text>
+                </View>
+              </Animated.View>
+            ))}
           </View>
         </View>
 
@@ -763,35 +776,25 @@ export default function LandingScreen() {
             snapToInterval={SW - 48}
             contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
           >
-            {TESTIMONIALS.map((t, i) => {
-              const testFloat = useSharedValue(0);
-              useEffect(() => {
-                testFloat.value = withRepeat(withSequence(
-                  withTiming(-6, { duration: 2400 + i * 200, easing: Easing.inOut(Easing.sin) }),
-                  withTiming(6, { duration: 2400 + i * 200, easing: Easing.inOut(Easing.sin) }),
-                ), -1, true);
-              }, []);
-              const testFloatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: testFloat.value }] }));
-              return (
-                <Animated.View key={i} style={[s.quoteCard, { width: SW - 64 }, testFloatStyle]}>
-                  <LinearGradient colors={[t.tint + '28', t.tint + '08']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                  <View style={[StyleSheet.absoluteFill, { borderRadius: 20, borderWidth: 1.5, borderColor: t.tint + '40', opacity: 0.6 }]} />
-                  <View style={[s.quoteTop, { borderTopColor: t.tint }]}>
-                    <Ionicons name="chatbubble-ellipses" size={18} color={t.tint} />
+            {TESTIMONIALS.map((t, i) => (
+              <Animated.View key={i} style={[s.quoteCard, { width: SW - 64 }, quoteAnims[i]]}>
+                <LinearGradient colors={[t.tint + '22', t.tint + '08']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <View style={[StyleSheet.absoluteFill, { borderRadius: 20, borderWidth: 1.2, borderColor: t.tint + '35', opacity: 0.55 }]} />
+                <View style={[s.quoteTop, { borderTopColor: t.tint }]}> 
+                  <Ionicons name="chatbubble-ellipses" size={18} color={t.tint} />
+                </View>
+                <Text style={s.quoteTxt}>"{t.quote}"</Text>
+                <View style={s.quoteAuthor}>
+                  <View style={[s.quoteAvatar, { backgroundColor: t.tint + '30' }]}>
+                    <Text style={[s.quoteInit, { color: t.tint }]}>{t.init}</Text>
                   </View>
-                  <Text style={s.quoteTxt}>"{t.quote}"</Text>
-                  <View style={s.quoteAuthor}>
-                    <View style={[s.quoteAvatar, { backgroundColor: t.tint + '35' }]}>
-                      <Text style={[s.quoteInit, { color: t.tint }]}>{t.init}</Text>
-                    </View>
-                    <View>
-                      <Text style={s.quoteName}>{t.name}</Text>
-                      <Text style={s.quoteFrom}>{t.from}</Text>
-                    </View>
+                  <View>
+                    <Text style={s.quoteName}>{t.name}</Text>
+                    <Text style={s.quoteFrom}>{t.from}</Text>
                   </View>
-                </Animated.View>
-              );
-            })}
+                </View>
+              </Animated.View>
+            ))}
           </ScrollView>
         </View>
 
@@ -809,21 +812,18 @@ export default function LandingScreen() {
             { bad: 'SSN required',            good: 'ITIN or passport OK'  },
             { bad: 'Credit resets at border', good: 'History transfers'    },
             { bad: 'English only',            good: '6 languages'          },
-          ].map((row, i) => {
-            const compAnim = useEntrance(1900 + i * 100, 20);
-            return (
-              <Animated.View key={i} style={[s.compareRow, compAnim]}>
-                <View style={s.compareBad}>
-                  <Ionicons name="close-circle" size={16} color={RED} />
-                  <Text style={s.compareBadTxt}>{row.bad}</Text>
-                </View>
-                <View style={s.compareGood}>
-                  <Ionicons name="checkmark-circle" size={16} color={TEAL} />
-                  <Text style={s.compareGoodTxt}>{row.good}</Text>
-                </View>
-              </Animated.View>
-            );
-          })}
+          ].map((row, i) => (
+            <Animated.View key={i} style={[s.compareRow, compareAnims[i]]}>
+              <View style={s.compareBad}>
+                <Ionicons name="close-circle" size={16} color={RED} />
+                <Text style={s.compareBadTxt}>{row.bad}</Text>
+              </View>
+              <View style={s.compareGood}>
+                <Ionicons name="checkmark-circle" size={16} color={TEAL} />
+                <Text style={s.compareGoodTxt}>{row.good}</Text>
+              </View>
+            </Animated.View>
+          ))}
         </View>
 
         {/* ══════════════════════════════════════════════════
@@ -1104,6 +1104,12 @@ const s = StyleSheet.create({
     gap: 10,
     marginTop: 4,
     justifyContent: 'space-between',
+  },
+  featItemHalf: {
+    width: (SW - 48 - 10) / 2,
+  },
+  featItemWide: {
+    width: SW - 48,
   },
 
   // Steps
