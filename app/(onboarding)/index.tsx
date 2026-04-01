@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Pressable,
@@ -32,6 +32,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 const { width: SW } = Dimensions.get('window');
+const CONTENT_MAX_WIDTH = 920;
+const TESTIMONIAL_CARD_WIDTH = Math.min(SW - 64, 560);
 
 // ── Palette ──────────────────────────────────────────────────
 const HERO1   = '#00A6FB';
@@ -354,6 +356,9 @@ export default function LandingScreen() {
   const ctaRipple = useSharedValue(0);
   const ctaPulse  = useSharedValue(1);
   const shimX     = useSharedValue(-SW);
+  const tickerSlide = useSharedValue(0);
+  const quoteScrollRef = useRef<ScrollView>(null);
+  const quoteScrollXRef = useRef(0);
 
   // Feature stagger entrances with bounce
   const f0 = useEntrance(200, 20);
@@ -435,6 +440,21 @@ export default function LandingScreen() {
       withTiming(-SW,      { duration: 0 }),
       withTiming(-SW,      { duration: 2400 }),
     ), -1, false));
+    tickerSlide.value = withRepeat(withSequence(
+      withTiming(-24, { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0, { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+    ), -1, true);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = quoteScrollXRef.current >= (TESTIMONIALS.length - 1) * (TESTIMONIAL_CARD_WIDTH + 14)
+        ? 0
+        : quoteScrollXRef.current + (TESTIMONIAL_CARD_WIDTH + 14);
+      quoteScrollRef.current?.scrollTo({ x: next, animated: true });
+      quoteScrollXRef.current = next;
+    }, 3200);
+    return () => clearInterval(id);
   }, []);
 
   const chipAnims = [chip0Anim, chip1Anim, chip2Anim];
@@ -447,6 +467,7 @@ export default function LandingScreen() {
   const beam2Style = useAnimatedStyle(() => ({ transform: [{ translateX: beamX2.value }, { rotate: '16deg' }] }));
   const ctaPulseStyle  = useAnimatedStyle(() => ({ transform: [{ scale: ctaPulse.value }] }));
   const shimStyle      = useAnimatedStyle(() => ({ transform: [{ translateX: shimX.value }] }));
+  const tickerSlideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tickerSlide.value }] }));
   const heroRippleStyle = useAnimatedStyle(() => ({
     opacity: interpolate(heroRipple.value, [0, 1], [0, 0.28]),
     transform: [{ scale: interpolate(heroRipple.value, [0, 1], [0.2, 1.9]) }],
@@ -559,7 +580,7 @@ export default function LandingScreen() {
               <Text style={s.starsTxt}>4.9 · Trusted by 200K+ people</Text>
             </Animated.View>
             {/* Proof ticker */}
-            <Animated.View style={[s.heroTicker, rateAnim]}>
+            <Animated.View style={[s.heroTicker, rateAnim, tickerSlideStyle]}>
               {HERO_TICKERS.map((item, i) => (
                 <Animated.View key={i} style={tickerAnims[i]}>
                   <View style={s.heroTickerPill}>
@@ -757,14 +778,15 @@ export default function LandingScreen() {
           </View>
           <Text style={s.sectionH2}>People like you.</Text>
           <ScrollView
+            ref={quoteScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
-            snapToInterval={SW - 48}
+            snapToInterval={TESTIMONIAL_CARD_WIDTH + 14}
             contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
           >
             {TESTIMONIALS.map((t, i) => (
-              <Animated.View key={i} style={[s.quoteCard, { width: SW - 64 }, quoteAnims[i]]}>
+              <Animated.View key={i} style={[s.quoteCard, { width: TESTIMONIAL_CARD_WIDTH }, quoteAnims[i]]}>
                 <LinearGradient colors={[t.tint + '22', t.tint + '08']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
                 <View style={[StyleSheet.absoluteFill, { borderRadius: 20, borderWidth: 1.2, borderColor: t.tint + '35', opacity: 0.55 }]} />
                 <View style={[s.quoteTop, { borderTopColor: t.tint }]}> 
@@ -1066,7 +1088,13 @@ const s = StyleSheet.create({
   trustTxt:  { fontSize: 11, fontWeight: '600', color: MUTED },
 
   // Sections
-  section: { paddingHorizontal: 24, paddingVertical: 28 },
+  section: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+  },
   statsBg: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: BORDER, overflow: 'hidden' },
   eyeRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   eyeLine: { width: 28, height: 2.5, borderRadius: 2 },
@@ -1093,10 +1121,10 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   featItemHalf: {
-    width: (SW - 48 - 10) / 2,
+    width: '48.6%',
   },
   featItemWide: {
-    width: SW - 48,
+    width: '100%',
   },
 
   // Steps
