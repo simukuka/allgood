@@ -250,24 +250,24 @@ function FlipCard({ feature, style: animStyle }: { feature: typeof FEATURES[0]; 
         {/* Front */}
         <Animated.View style={[fc.card, frontStyle]}>
           <LinearGradient colors={feature.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { borderRadius: 18, borderWidth: 2, borderColor: feature.tint + '28', opacity: 0.6 }]} />
+          <View style={[StyleSheet.absoluteFill, { borderRadius: 12, borderWidth: 1, borderColor: feature.tint + '20', opacity: 0.5 }]} />
           <View style={[fc.iconWrap, { backgroundColor: feature.tint + '35' }]}>
-            <Ionicons name={feature.icon} size={22} color={feature.tint} />
+            <Ionicons name={feature.icon} size={18} color={feature.tint} />
           </View>
           <Text style={fc.title}>{feature.title}</Text>
           <Text style={fc.sub}>{feature.sub}</Text>
           <View style={fc.tapHint}>
-            <Ionicons name="refresh-outline" size={11} color={feature.tint + 'CC'} />
-            <Text style={[fc.tapTxt, { color: feature.tint + 'CC' }]}>Tap to reveal</Text>
+            <Ionicons name="refresh-outline" size={10} color={feature.tint + 'CC'} />
+            <Text style={[fc.tapTxt, { color: feature.tint + 'CC' }]}>Tap</Text>
           </View>
         </Animated.View>
 
         {/* Back */}
         <Animated.View style={[fc.card, fc.cardBack, backStyle]}>
           <LinearGradient colors={[feature.tint + '38', feature.tint + '15']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { borderRadius: 18, borderWidth: 2, borderColor: feature.tint + '35', opacity: 0.7 }]} />
+          <View style={[StyleSheet.absoluteFill, { borderRadius: 12, borderWidth: 1, borderColor: feature.tint + '30', opacity: 0.6 }]} />
           <View style={[fc.iconWrap, { backgroundColor: feature.tint + '30' }]}>
-            <Ionicons name={feature.icon} size={22} color={feature.tint} />
+            <Ionicons name={feature.icon} size={18} color={feature.tint} />
           </View>
           <Text style={[fc.title, { color: WHITE }]}>{feature.title}</Text>
           <Text style={[fc.backDesc, { color: WHITE }]}>{feature.back}</Text>
@@ -369,11 +369,11 @@ export default function LandingScreen() {
   const shimX     = useSharedValue(-SW);
 
   // Feature stagger entrances with bounce
-  const f0 = useEntrance(200, 36);
-  const f1 = useEntrance(300, 36);
-  const f2 = useEntrance(400, 36);
-  const f3 = useEntrance(500, 36);
-  const f4 = useEntrance(600, 36);
+  const f0 = useEntrance(200, 20);
+  const f1 = useEntrance(260, 20);
+  const f2 = useEntrance(320, 20);
+  const f3 = useEntrance(380, 20);
+  const f4 = useEntrance(440, 20);
   const featAnims = [f0, f1, f2, f3, f4];
 
   useEffect(() => {
@@ -691,7 +691,9 @@ export default function LandingScreen() {
           <Text style={s.sectionSub}>Tap any card to learn more.</Text>
           <View style={s.featGrid}>
             {FEATURES.map((f, i) => (
-              <FlipCard key={i} feature={f} style={featAnims[i]} />
+              <View key={i} style={{ width: (SW - 48 - 10) / 2 }}>
+                <FlipCard feature={f} style={featAnims[i]} />
+              </View>
             ))}
           </View>
         </View>
@@ -1077,13 +1079,13 @@ const s = StyleSheet.create({
   trustTxt:  { fontSize: 11, fontWeight: '600', color: MUTED },
 
   // Sections
-  section: { paddingHorizontal: 24, paddingVertical: 36 },
+  section: { paddingHorizontal: 24, paddingVertical: 28 },
   statsBg: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: BORDER, overflow: 'hidden' },
-  eyeRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  eyeRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   eyeLine: { width: 28, height: 2.5, borderRadius: 2 },
   eyeTxt:  { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  sectionH2: { fontSize: 30, fontWeight: '900', color: WHITE, letterSpacing: -1.2, lineHeight: 36, marginBottom: 10 },
-  sectionSub: { fontSize: 15, color: MUTED, lineHeight: 23, marginBottom: 24 },
+  sectionH2: { fontSize: 28, fontWeight: '900', color: WHITE, letterSpacing: -1.2, lineHeight: 34, marginBottom: 8 },
+  sectionSub: { fontSize: 14, color: MUTED, lineHeight: 21, marginBottom: 18 },
 
   // Pain cards
   painCards: { gap: 10 },
@@ -1096,7 +1098,13 @@ const s = StyleSheet.create({
   painTxt: { fontSize: 14, color: WHITE, fontWeight: '500', flex: 1, lineHeight: 20 },
 
   // Feature flip cards
-  featGrid: { gap: 12, marginTop: 8 },
+  featGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 4,
+    justifyContent: 'space-between',
+  },
 
   // Steps
   stepsCol: { gap: 0, marginTop: 8 },
@@ -1185,23 +1193,23 @@ const fc = StyleSheet.create({
   glowBg: {
     position: 'absolute',
     top: -2, left: -2, right: -2, bottom: -2,
-    borderRadius: 20,
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 1.5,
     zIndex: -1,
   },
   card: {
-    backgroundColor: SURFACE, borderRadius: 18, padding: 20,
-    borderWidth: 1, borderColor: BORDER2, overflow: 'hidden', minHeight: 130,
+    backgroundColor: SURFACE, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: BORDER2, overflow: 'hidden', minHeight: 100,
   },
   cardBack: {
     backgroundColor: SURF2,
   },
-  iconWrap: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  title:    { fontSize: 16, fontWeight: '700', color: WHITE, marginBottom: 4 },
-  sub:      { fontSize: 13, color: MUTED, lineHeight: 19 },
-  backDesc: { fontSize: 14, lineHeight: 22 },
-  tapHint:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  tapTxt:   { fontSize: 11, fontWeight: '500' },
+  iconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  title:    { fontSize: 14, fontWeight: '700', color: WHITE, marginBottom: 3 },
+  sub:      { fontSize: 12, color: MUTED, lineHeight: 17 },
+  backDesc: { fontSize: 13, lineHeight: 20 },
+  tapHint:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  tapTxt:   { fontSize: 10, fontWeight: '500' },
 });
 
 // ── Stat tile styles ──────────────────────────────────────────
