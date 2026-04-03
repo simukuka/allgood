@@ -173,35 +173,40 @@ export default function DepositScreen() {
     setNotice(null);
     try {
       if (realBankingEnabled && (selectedMethod === "bank" || selectedMethod === "card")) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        if (!accessToken) throw new Error("Please sign in again to continue.");
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          if (!accessToken) throw new Error("Please sign in again to continue.");
 
-        const response = await fetch("/api/stripe/topup-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            amount: numAmount,
-            currency: "USD",
-            method: selectedMethod,
-          }),
-        });
+          const response = await fetch("/api/stripe/topup-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              amount: numAmount,
+              currency: "USD",
+              method: selectedMethod,
+            }),
+          });
 
-        const payload = await response.json();
-        if (!response.ok || !payload?.url) {
-          throw new Error(payload?.error || "Unable to start secure bank/card funding.");
-        }
+          const payload = await response.json();
+          if (!response.ok || !payload?.url) {
+            throw new Error(payload?.error || "Unable to start secure bank/card funding.");
+          }
 
-        if (typeof window !== "undefined") {
-          window.location.assign(payload.url);
+          if (typeof window !== "undefined") {
+            window.location.assign(payload.url);
+            return;
+          }
+
+          await WebBrowser.openBrowserAsync(payload.url);
           return;
+        } catch (stripeErr) {
+          console.warn("Stripe top-up unavailable, falling back to local funding:", stripeErr);
+          setNotice("Secure funding is unavailable right now, so the app is using the local funding path.");
         }
-
-        await WebBrowser.openBrowserAsync(payload.url);
-        return;
       }
 
       if (selectedMethod === "bank") {

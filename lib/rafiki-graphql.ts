@@ -24,6 +24,42 @@ const RAFIKI_GRAPHQL_URL =
 export const isRafikiGraphqlConfigured =
   RAFIKI_PROXY_URL.trim().length > 0 || RAFIKI_GRAPHQL_URL.trim().length > 0;
 
+let rafikiHealthCheck: Promise<boolean> | null = null;
+
+export async function shouldUseRafikiFlow(): Promise<boolean> {
+  if (!isRafikiGraphqlConfigured) return false;
+  if (rafikiHealthCheck) return rafikiHealthCheck;
+
+  rafikiHealthCheck = (async () => {
+    const endpoint = RAFIKI_PROXY_URL || RAFIKI_GRAPHQL_URL;
+    if (!endpoint) return false;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "query { __typename }" }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) return false;
+
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: { __typename?: string }; errors?: unknown[] }
+        | null;
+
+      return Boolean(payload?.data?.__typename || !payload?.errors?.length);
+    } catch {
+      return false;
+    }
+  })();
+
+  return rafikiHealthCheck;
+}
+
 export interface RafikiGraphQLError {
   message: string;
   extensions?: Record<string, unknown>;

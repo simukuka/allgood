@@ -33,6 +33,7 @@ import {
   isBiometricAvailable,
 } from "@/lib/biometrics";
 import { isRafikiGraphqlConfigured } from "@/lib/rafiki-graphql";
+import { shouldUseRafikiFlow } from "@/lib/rafiki-graphql";
 import { formatIlpErrorForDisplay } from "@/lib/rafiki-errors";
 import { resolveRecipientWallet } from "@/lib/rafiki-wallet";
 import { supabase } from "@/lib/supabase";
@@ -325,8 +326,10 @@ export default function SendConfirmScreen() {
         setFinalStatus("completed");
       };
 
-      // Attempt Rafiki GraphQL payment when configured
-      if (isRafikiGraphqlConfigured) {
+      const useRafikiFlow = await shouldUseRafikiFlow();
+
+      // Attempt Rafiki GraphQL payment only when the backend is healthy.
+      if (isRafikiGraphqlConfigured && useRafikiFlow) {
         // rafiki_wallet_address_id lives on the profile row (provisioned at sign-up)
         const senderWalletAddressId = profile?.rafiki_wallet_address_id ?? "";
 
@@ -417,26 +420,8 @@ export default function SendConfirmScreen() {
           }
         }
       } else {
-        // Rafiki not configured — mark completed immediately (local ledger mode)
-        await updateTransactionStatus(txData.id, "completed");
-
-        if (paymentMethod !== "wallet") {
-          const lookupColumn = paymentMethod === "email" ? "email" : "phone";
-          const { data: recipientProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq(lookupColumn, recipientRaw)
-            .maybeSingle();
-
-          if (recipientProfile?.id) {
-            await supabase
-              .from("transactions")
-              .update({ recipient_id: recipientProfile.id })
-              .eq("id", txData.id);
-            await addFundsToChecking(recipientProfile.id, transferAmount);
-          }
-        }
-
+        // Rafiki unavailable or unhealthy — complete locally so the app still works end-to-end.
+        await completeLocally("rafiki_unhealthy_or_unavailable");
         setFinalStatus("completed");
       }
 
